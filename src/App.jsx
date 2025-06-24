@@ -1,8 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import {
+  Table, TableBody, TableCell, TableContainer,
+  TableHead, TableRow, Paper, Typography,
+  IconButton, TextField, TableSortLabel
+} from '@mui/material';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import './App.css';
 
 function App() {
   const [tenders, setTenders] = useState([]);
+  const [filters, setFilters] = useState({});
+  const [visibleFilters, setVisibleFilters] = useState({});
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   useEffect(() => {
     axios.get('http://localhost:5000/api/tenders')
@@ -10,118 +20,128 @@ function App() {
       .catch(error => console.error('Error fetching tenders:', error));
   }, []);
 
+  const columns = [
+    { key: 'N_o', label: 'NO', filterable: false },
+    { key: 'RefNum', label: 'Reference Number' },
+    { key: 'Description', label: 'Description' },
+    { key: 'StartDate', label: 'Start Date' },
+    { key: 'EndDate', label: 'End Date' },
+    { key: 'Region', label: 'Region' },
+    { key: 'Amount', label: 'Amount' },
+    { key: 'Remark', label: 'Remark' }
+  ];
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const toggleFilterVisibility = (key) => {
+    setVisibleFilters(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  const getProcessedData = () => {
+    let data = [...tenders];
+
+    // Apply filters
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) {
+        data = data.filter(item =>
+          String(item[key] ?? '').toLowerCase().includes(value.toLowerCase())
+        );
+      }
+    });
+
+    // Apply sorting
+    if (sortConfig.key) {
+      data.sort((a, b) => {
+        const valA = a[sortConfig.key] ?? '';
+        const valB = b[sortConfig.key] ?? '';
+        if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return data;
+  };
+
+  const processedTenders = getProcessedData();
+
   return (
-    <div style={containerStyle}>
-      <h1 style={headerStyle}>📋 Available Tenders</h1>
+    <div className="container">
+      <Typography variant="h4" className="title">
+        📋 Available Tenders
+      </Typography>
 
       {tenders.length === 0 ? (
-        <p style={emptyTextStyle}>No tenders available.</p>
+        <Typography variant="body1" className="emptyText">
+          No tenders available.
+        </Typography>
       ) : (
-        <div style={tableWrapperStyle}>
-          <table style={tableStyle}>
-            <thead>
-              <tr style={headerRowStyle}>
-                <th style={thStyle}>NO</th>
-                <th style={thStyle}>Reference Number</th>
-                <th style={thStyle}>Description</th>
-                <th style={thStyle}>Start Date</th>
-                <th style={thStyle}>End Date</th>
-                <th style={thStyle}>Region</th>
-                <th style={thStyle}>Amount</th>
-                <th style={thStyle}>Remark</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tenders.map((tender, index) => (
-                <tr
-                  key={tender.id}
-                  style={{
-                    ...tdRowStyle,
-                    backgroundColor: index % 2 === 0 ? '#f9f9f9' : '#ffffff'
-                  }}
-                >
-                  <td style={tdStyle}>{tender.N_o}</td>
-                  <td style={tdStyle}>{tender.RefNum}</td>
-                  <td style={tdStyle}>{tender.Description}</td>
-                  <td style={tdStyle}>{new Date(tender.StartDate).toLocaleDateString()}</td>
-                  <td style={tdStyle}>{new Date(tender.EndDate).toLocaleDateString()}</td>
-                  <td style={tdStyle}>{tender.Region}</td>
-                  <td style={tdStyle}>{tender.Amount?.toLocaleString()}</td>
-                  <td style={tdStyle}>{tender.Remark}</td>
-                </tr>
+        <TableContainer component={Paper} className="tableContainer">
+          <Table>
+            <TableHead className="tableHead">
+              <TableRow>
+                {columns.map(col => (
+                  <TableCell key={col.key}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <TableSortLabel
+                        active={sortConfig.key === col.key}
+                        direction={sortConfig.key === col.key ? sortConfig.direction : 'asc'}
+                        onClick={() => handleSort(col.key)}
+                      >
+                        <strong>{col.label}</strong>
+                      </TableSortLabel>
+                      {col.filterable !== false && (
+                        <IconButton size="small" onClick={() => toggleFilterVisibility(col.key)}>
+                          <FilterListIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                    </div>
+                    {col.filterable !== false && visibleFilters[col.key] && (
+                      <TextField
+                        size="small"
+                        variant="standard"
+                        placeholder="Filter..."
+                        onChange={(e) => handleFilterChange(col.key, e.target.value)}
+                        fullWidth
+                        sx={{ mt: 1 }}
+                      />
+                    )}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {processedTenders.map((tender, index) => (
+                <TableRow key={tender.id} className={index % 2 === 0 ? "evenRow" : "oddRow"}>
+                  <TableCell>{tender.N_o}</TableCell>
+                  <TableCell>{tender.RefNum}</TableCell>
+                  <TableCell>{tender.Description}</TableCell>
+                  <TableCell>{new Date(tender.StartDate).toLocaleDateString()}</TableCell>
+                  <TableCell>{new Date(tender.EndDate).toLocaleDateString()}</TableCell>
+                  <TableCell>{tender.Region}</TableCell>
+                  <TableCell>{tender.Amount?.toLocaleString()}</TableCell>
+                  <TableCell>{tender.Remark}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
     </div>
   );
 }
-
-// Style objects
-const containerStyle = {
-  maxWidth: '95%',
-  margin: '40px auto',
-  padding: 20,
-  fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-  color: '#2c3e50'
-};
-
-const headerStyle = {
-  textAlign: 'center',
-  fontSize: 28,
-  color: '#2c3e50',
-  marginBottom: 30
-};
-
-const emptyTextStyle = {
-  textAlign: 'center',
-  fontSize: 18,
-  marginTop: 40
-};
-
-const tableWrapperStyle = {
-  overflowX: 'auto',
-  background: '#fff',
-  borderRadius: 12,
-  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
-  padding: 10
-};
-
-const tableStyle = {
-  width: '100%',
-  borderCollapse: 'collapse', // can also try 'separate' for spaced borders
-  minWidth: 800,
-  transition: 'all 0.3s ease',
-  border: '2px solid #3498db', 
-  borderRadius: '15px',         
-  overflow: 'hidden'           
-};
-
-
-const headerRowStyle = {
-  backgroundColor: '#3498db',
-  color: 'white'
-};
-
-const thStyle = {
-  padding: '14px 18px',
-  textAlign: 'left',
-  fontWeight: '600',
-  fontSize: 15,
-  whiteSpace: 'nowrap'
-};
-
-const tdRowStyle = {
-  transition: 'background-color 0.3s ease',
-  cursor: 'pointer'
-};
-
-const tdStyle = {
-  padding: '12px 18px',
-  borderBottom: '1px solid #e1e1e1',
-  fontSize: 14,
-  color: '#333'
-};
 
 export default App;

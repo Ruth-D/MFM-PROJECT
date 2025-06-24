@@ -1,5 +1,44 @@
-.App {
-  font-family: Arial, sans-serif;
+.container {
+  max-width: 95%;
+  margin: 40px auto;
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #2c3e50;
+}
+
+.title {
   text-align: center;
-  padding: 2rem;
+  margin-bottom: 30px;
+  color: #2c3e50;
+}
+
+.emptyText {
+  text-align: center;
+  font-size: 18px;
+  margin-top: 40px;
+}
+
+.tableContainer {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+  overflow-x: auto;
+}
+
+.tableHead {
+  background-color: #3498db;
+  color: white;
+  /* align-items: center; */
+  text-align: center;
+}
+
+.evenRow {
+  background-color: #f9f9f9;
+}
+
+.oddRow {
+  background-color: #ffffff;
+}
+
+.MuiTableCell-root {
+  vertical-align: top;
 }
