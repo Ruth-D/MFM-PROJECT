@@ -37,6 +37,7 @@ import HomeIcon from "@mui/icons-material/Home";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 import InfoIcon from "@mui/icons-material/Info";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import SearchIcon from "@mui/icons-material/Search";
 
 const drawerWidth = 200;
 
@@ -50,6 +51,9 @@ function App() {
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [selectedTenderId, setSelectedTenderId] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTender, setEditTender] = useState(null);
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -81,7 +85,30 @@ function App() {
   };
 
   const handleEdit = (id) => {
-    console.log("Edit tender with ID:", id);
+    const tender = tenders.find((t) => t.id === id);
+    setEditTender({ ...tender });
+    setEditOpen(true);
+    handleMenuClose();
+  };
+
+  // Handle changes in edit form
+  const handleEditChange = (key, value) => {
+    setEditTender((prev) => ({ ...prev, [key]: value }));
+  };
+
+  // Save edited tender
+  const handleEditSave = async () => {
+    try {
+      await axios.put(
+        `http://localhost:5000/api/tenders/${editTender.id}`,
+        editTender
+      );
+      setEditOpen(false);
+      setEditTender(null);
+      fetchTenders();
+    } catch (error) {
+      console.error("Error updating tender:", error);
+    }
   };
 
   const columns = [
@@ -117,6 +144,27 @@ function App() {
 
   const getProcessedData = () => {
     let data = [...tenders];
+
+    if (searchTerm.trim() !== "") {
+      data = data.filter((item) => {
+        // Convert all values to string, including formatted dates
+        return Object.entries(item)
+          .map(([key, value]) => {
+            if (
+              key.toLowerCase().includes("date") &&
+              value &&
+              !isNaN(new Date(value))
+            ) {
+              // Format date as string (e.g., MM/DD/YYYY)
+              return new Date(value).toLocaleDateString();
+            }
+            return String(value ?? "");
+          })
+          .join(" ")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase());
+      });
+    }
 
     Object.entries(filters).forEach(([key, value]) => {
       if (value) {
@@ -189,31 +237,91 @@ function App() {
             boxSizing: "border-box",
             background: "#213d50",
             color: "#fff",
+            borderRight: "none",
           },
         }}
       >
-        <Toolbar />
-        <Box sx={{ overflow: "auto" }}>
+        <Toolbar
+          sx={{
+            minHeight: 64,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "#1a2e3b",
+            mb: 1,
+          }}
+        >
+          {/* Logo or App Name */}
+          <Typography
+            variant="h6"
+            sx={{ fontWeight: "bold", letterSpacing: 1 }}
+          >
+            Tenders
+          </Typography>
+        </Toolbar>
+        <Box sx={{ overflow: "auto", px: 1 }}>
           <List>
-            <ListItem button>
-              <ListItemIcon sx={{ color: "#fff" }}>
+            <ListItem
+              button
+              sx={{
+                borderRadius: 2,
+                mb: 1,
+                "&:hover": { background: "#29506a" },
+              }}
+            >
+              <ListItemIcon sx={{ color: "#fff", minWidth: 36 }}>
                 <HomeIcon />
               </ListItemIcon>
-              <ListItemText primary="Home" />
+              <ListItemText
+                primary="Home"
+                primaryTypographyProps={{ fontSize: 15, fontWeight: 500 }}
+              />
             </ListItem>
-            <ListItem button>
-              <ListItemIcon sx={{ color: "#fff" }}>
+            <ListItem
+              button
+              sx={{
+                borderRadius: 2,
+                mb: 1,
+                "&:hover": { background: "#29506a" },
+              }}
+            >
+              <ListItemIcon sx={{ color: "#fff", minWidth: 36 }}>
                 <ListAltIcon />
               </ListItemIcon>
-              <ListItemText primary="Tenders" />
+              <ListItemText
+                primary="Tenders"
+                primaryTypographyProps={{ fontSize: 15, fontWeight: 500 }}
+              />
             </ListItem>
-            <ListItem button>
-              <ListItemIcon sx={{ color: "#fff" }}>
+            <ListItem
+              button
+              sx={{
+                borderRadius: 2,
+                mb: 1,
+                "&:hover": { background: "#29506a" },
+              }}
+            >
+              <ListItemIcon sx={{ color: "#fff", minWidth: 36 }}>
                 <InfoIcon />
               </ListItemIcon>
-              <ListItemText primary="About" />
+              <ListItemText
+                primary="Add New Tender"
+                primaryTypographyProps={{ fontSize: 15, fontWeight: 500 }}
+              />
             </ListItem>
           </List>
+          <Box
+            sx={{
+              borderTop: "1px solid #29506a",
+              mt: 2,
+              pt: 2,
+              textAlign: "center",
+            }}
+          >
+            <Typography variant="caption" sx={{ color: "#b0bec5" }}>
+              &copy; {new Date().getFullYear()} MFM
+            </Typography>
+          </Box>
         </Box>
       </Drawer>
       {/* Main Content */}
@@ -221,24 +329,39 @@ function App() {
         <Typography variant="h5" className="title">
           Available Tenders
         </Typography>
+        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+          <TextField
+            placeholder="Search all records..."
+            variant="outlined"
+            size="small"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            sx={{ width: 300 }}
+            InputProps={{
+              endAdornment: (
+                <IconButton disabled>
+                  <SearchIcon />
+                </IconButton>
+              ),
+            }}
+          />
+        </Box>
         {tenders.length === 0 ? (
           <Typography variant="body2" className="emptyText">
             No tenders available.
           </Typography>
         ) : (
           <>
-            <TableContainer
-              component={Paper}
-              className="tableContainer"
-              // sx={{
-              //     maxWidth: 1000,
-              //     margin: "0 auto",
-              //     boxShadow: 2,
-              //     borderRadius: 2,}}
-            >
+            <TableContainer component={Paper} className="tableContainer">
               <Table size="small">
-                <TableHead className="tableHead">
-                  <TableRow sx={{ backgroundColor: "#213d50" }}>
+                <TableHead
+                  className="tableHead"
+                  sx={{
+                    backgroundColor: "#213d50",
+                    "& th": { color: "#fff" },
+                  }}
+                >
+                  <TableRow>
                     {columns.map((col) => (
                       <TableCell key={col.key}>
                         <div
@@ -351,12 +474,7 @@ function App() {
               open={Boolean(menuAnchorEl)}
               onClose={handleMenuClose}
             >
-              <MenuItem
-                onClick={() => {
-                  handleEdit(selectedTenderId);
-                  handleMenuClose();
-                }}
-              >
+              <MenuItem onClick={() => handleEdit(selectedTenderId)}>
                 <EditIcon fontSize="small" sx={{ mr: 1 }} /> Edit
               </MenuItem>
               <MenuItem onClick={handleDeleteClick}>
@@ -364,9 +482,106 @@ function App() {
               </MenuItem>
             </Menu>
             <Dialog
-              open={confirmOpen}
-              onClose={handleConfirmClose}
+              open={editOpen}
+              onClose={() => setEditOpen(false)}
+              maxWidth="sm"
+              fullWidth
             >
+              <DialogTitle>Edit Tender</DialogTitle>
+              <DialogContent>
+                {editTender && (
+                  <>
+                    <TextField
+                      margin="dense"
+                      label="Reference Number"
+                      fullWidth
+                      value={editTender.RefNum || ""}
+                      onChange={(e) =>
+                        handleEditChange("RefNum", e.target.value)
+                      }
+                    />
+                    <TextField
+                      margin="dense"
+                      label="Description"
+                      fullWidth
+                      value={editTender.Description || ""}
+                      onChange={(e) =>
+                        handleEditChange("Description", e.target.value)
+                      }
+                    />
+                    <TextField
+                      margin="dense"
+                      label="Start Date"
+                      type="date"
+                      fullWidth
+                      InputLabelProps={{ shrink: true }}
+                      value={
+                        editTender.StartDate
+                          ? editTender.StartDate.slice(0, 10)
+                          : ""
+                      }
+                      onChange={(e) =>
+                        handleEditChange("StartDate", e.target.value)
+                      }
+                    />
+                    <TextField
+                      margin="dense"
+                      label="End Date"
+                      type="date"
+                      fullWidth
+                      InputLabelProps={{ shrink: true }}
+                      value={
+                        editTender.EndDate
+                          ? editTender.EndDate.slice(0, 10)
+                          : ""
+                      }
+                      onChange={(e) =>
+                        handleEditChange("EndDate", e.target.value)
+                      }
+                    />
+                    <TextField
+                      margin="dense"
+                      label="Region"
+                      fullWidth
+                      value={editTender.Region || ""}
+                      onChange={(e) =>
+                        handleEditChange("Region", e.target.value)
+                      }
+                    />
+                    <TextField
+                      margin="dense"
+                      label="Amount"
+                      type="number"
+                      fullWidth
+                      value={editTender.Amount || ""}
+                      onChange={(e) =>
+                        handleEditChange("Amount", e.target.value)
+                      }
+                    />
+                    <TextField
+                      margin="dense"
+                      label="Remark"
+                      fullWidth
+                      value={editTender.Remark || ""}
+                      onChange={(e) =>
+                        handleEditChange("Remark", e.target.value)
+                      }
+                    />
+                  </>
+                )}
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setEditOpen(false)}>Cancel</Button>
+                <Button
+                  onClick={handleEditSave}
+                  variant="contained"
+                  color="primary"
+                >
+                  Save
+                </Button>
+              </DialogActions>
+            </Dialog>
+            <Dialog open={confirmOpen} onClose={handleConfirmClose}>
               <DialogTitle>Confirm Delete</DialogTitle>
               <DialogContent>
                 <DialogContentText>
@@ -375,7 +590,11 @@ function App() {
               </DialogContent>
               <DialogActions>
                 <Button onClick={handleConfirmClose}>Cancel</Button>
-                <Button onClick={handleConfirmDelete} color="error" variant="contained">
+                <Button
+                  onClick={handleConfirmDelete}
+                  color="error"
+                  variant="contained"
+                >
                   Delete
                 </Button>
               </DialogActions>
