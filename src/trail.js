@@ -515,19 +515,19 @@ export default App;
 
 
 
-// app.put('/api/tenders/:N_o', async (req, res) => {
-//   try {
-//     const { N_o } = req.params;
-//     const [updated] = await Tender.update(req.body, {
-//       where: { N_o }
-//     });
-//     if (updated) {
-//       const updatedTender = await Tender.findByPk(N_o);
-//       return res.json(updatedTender);
-//     }
-//     res.status(404).json({ error: 'Tender not found' });
-//   } catch (err) {
-//     console.error('Error updating tender:', err);
-//     res.status(500).json({ error: 'Database error', details: err.message });
-//   }
-// });
+app.put('/api/tenders/:N_o', async (req, res) => {
+  try {
+    const { N_o } = req.params;
+    const [updated] = await Tender.update(req.body, {
+      where: { N_o }
+    });
+    if (updated) {
+      const updatedTender = await Tender.findByPk(N_o);
+      return res.json(updatedTender);
+    }
+    res.status(404).json({ error: 'Tender not found' });
+  } catch (err) {
+    console.error('Error updating tender:', err);
+    res.status(500).json({ error: 'Database error', details: err.message });
+  }
+});

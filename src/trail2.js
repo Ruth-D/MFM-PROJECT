@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import "./App.css";
 import {Table,TableBody,TableCell,TableContainer,TableHead,TableRow,
@@ -18,12 +18,14 @@ import {Table,TableBody,TableCell,TableContainer,TableHead,TableRow,
   Button,
 } from "@mui/material";
 import FilterListIcon from "@mui/icons-material/FilterList";
+import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import TablePagination from "@mui/material/TablePagination";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import SearchIcon from "@mui/icons-material/Search";
 import SideNav from "./SideNav"; 
+
 
 function App() {
   const [tenders, setTenders] = useState([]);
@@ -36,8 +38,6 @@ function App() {
   const [selectedTenderId, setSelectedTenderId] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [editOpen, setEditOpen] = useState(false);
-  const [editTender, setEditTender] = useState(null);
 
   useEffect(() => {
     fetchTenders();
@@ -72,39 +72,6 @@ function App() {
     setPage(0);
   };
 
-  const handleDelete = async (id) => {
-    try {
-      await axios.delete(`http://localhost:5000/api/tenders/${id}`);
-      fetchTenders();
-    } catch (err) {
-      console.error("Error deleting:", err);
-    }
-  };
-
-  const handleEdit = (N_o) => {
-    const tender = tenders.find((t) => t.N_o === N_o);
-    setEditTender({ ...tender });
-    setEditOpen(true);
-    handleMenuClose();
-  };
-
-  const handleEditChange = (key, value) => {
-    setEditTender((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const handleEditSave = async () => {
-    try {
-      await axios.put(
-        `http://localhost:5000/api/tenders/${editTender.N_o}`,
-        editTender
-      );
-      setEditOpen(false);
-      fetchTenders();
-    } catch (err) {
-      console.error("Error updating:", err);
-    }
-  };
-
   const handleMenuOpen = (e, id) => {
     setMenuAnchorEl(e.currentTarget);
     setSelectedTenderId(id);
@@ -120,13 +87,6 @@ function App() {
     handleMenuClose();
   };
 
-  const handleConfirmClose = () => setConfirmOpen(false);
-
-  const handleConfirmDelete = async () => {
-    if (selectedTenderId) await handleDelete(selectedTenderId);
-    setConfirmOpen(false);
-  };
-
   const columns = [
     { key: "N_o", label: "NO", filterable: false },
     { key: "RefNum", label: "Reference Number" },
@@ -136,7 +96,7 @@ function App() {
     { key: "Region", label: "Region" },
     { key: "Amount", label: "Amount" },
     { key: "Remark", label: "Remark" },
-    { key: "Actions", label: "Actions", filterable: false },
+    { key: "Actions", label: "Actions", filterable: false, sortable: false },
   ];
 
   const regionOptions = [
@@ -194,7 +154,6 @@ function App() {
       <SideNav />
       <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
         <Typography variant="h5">Available Tenders</Typography>
-
         <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
           <TextField
             placeholder="Search..."
@@ -212,15 +171,9 @@ function App() {
             }}
           />
         </Box>
-
         <TableContainer component={Paper}>
           <Table size="small">
-            <TableHead
-              sx={{
-                backgroundColor: "#213d50",
-                "& th": { color: "#fff" },
-              }}
-            >
+            <TableHead>
               <TableRow>
                 {columns.map((col) => (
                   <TableCell key={col.key}>
@@ -250,7 +203,7 @@ function App() {
                           size="small"
                           onClick={() => toggleFilterVisibility(col.key)}
                         >
-                          <FilterListIcon fontSize="small" />
+                          <FilterAltIcon fontSize="small" />
                         </IconButton>
                       )}
                     </div>
@@ -331,8 +284,6 @@ function App() {
           onRowsPerPageChange={handleChangeRowsPerPage}
           rowsPerPageOptions={[5, 10, 25, 100]}
         />
-
-        {/* Menu */}
         <Menu
           anchorEl={menuAnchorEl}
           open={Boolean(menuAnchorEl)}
@@ -347,187 +298,9 @@ function App() {
             Delete
           </MenuItem>
         </Menu>
-         {/* Edit Confirmation Dialog */}
-        <Dialog
-          open={editOpen}
-          onClose={() => setEditOpen(false)}
-          maxWidth="sm"
-          fullWidth
-          PaperProps={{
-            sx: {
-              borderRadius: 3,
-              background: "#f7fbfc",
-              boxShadow: 8,
-            },
-          }}
-        >
-          <DialogTitle
-            sx={{
-              background: "#213d50",
-              color: "#fff",
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              pb: 2,
-              borderTopLeftRadius: 12,
-              borderTopRightRadius: 12,
-            }}
-          >
-            <EditIcon sx={{ mr: 1 }} />
-            Edit Tender
-          </DialogTitle>
-          <DialogContent sx={{ pt: 3 }}>
-            {editTender && (
-              <Box
-                component="form"
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 2,
-                }}
-              >
-                <TextField
-                  margin="dense"
-                  label="Reference Number"
-                  fullWidth
-                  variant="outlined"
-                  value={editTender.RefNum || ""}
-                  onChange={(e) => handleEditChange("RefNum", e.target.value)}
-                />
-                <TextField
-                  margin="dense"
-                  label="Description"
-                  fullWidth
-                  variant="outlined"
-                  value={editTender.Description || ""}
-                  onChange={(e) =>
-                    handleEditChange("Description", e.target.value)
-                  }
-                />
-                <Box sx={{ display: "flex", gap: 2 }}>
-                  <TextField
-                    margin="dense"
-                    label="Start Date"
-                    type="date"
-                    fullWidth
-                    variant="outlined"
-                    InputLabelProps={{ shrink: true }}
-                    value={
-                      editTender.StartDate
-                        ? editTender.StartDate.slice(0, 10)
-                        : ""
-                    }
-                    onChange={(e) =>
-                      handleEditChange("StartDate", e.target.value)
-                    }
-                  />
-                  <TextField
-                    margin="dense"
-                    label="End Date"
-                    type="date"
-                    fullWidth
-                    variant="outlined"
-                    InputLabelProps={{ shrink: true }}
-                    value={
-                      editTender.EndDate ? editTender.EndDate.slice(0, 10) : ""
-                    }
-                    onChange={(e) =>
-                      handleEditChange("EndDate", e.target.value)
-                    }
-                  />
-                </Box>
-                <Box sx={{ display: "flex", gap: 2 }}>
-                  <TextField
-                    margin="dense"
-                    label="Region"
-                    fullWidth
-                    variant="outlined"
-                    value={editTender.Region || ""}
-                    onChange={(e) => handleEditChange("Region", e.target.value)}
-                  />
-                  <TextField
-                    margin="dense"
-                    label="Amount"
-                    type="number"
-                    fullWidth
-                    variant="outlined"
-                    value={editTender.Amount || ""}
-                    onChange={(e) => handleEditChange("Amount", e.target.value)}
-                  />
-                </Box>
-                <TextField
-                  margin="dense"
-                  label="Remark"
-                  fullWidth
-                  variant="outlined"
-                  multiline
-                  minRows={2}
-                  value={editTender.Remark || ""}
-                  onChange={(e) => handleEditChange("Remark", e.target.value)}
-                />
-              </Box>
-            )}
-          </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button
-              onClick={() => setEditOpen(false)}
-              variant="outlined"
-              color="inherit"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleEditSave}
-              variant="contained"
-              color="primary"
-              sx={{ boxShadow: 2 }}
-              startIcon={<EditIcon />}
-            >
-              Save Changes
-            </Button>
-          </DialogActions>
-        </Dialog>
-        {/* Delete Confirmation Dialog */}
-        <Dialog open={confirmOpen} onClose={handleConfirmClose}>
-          <DialogTitle>Confirm Delete</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              Are you sure you want to delete this tender?
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleConfirmClose}>Cancel</Button>
-            <Button
-              onClick={handleConfirmDelete}
-              color="error"
-              variant="contained"
-            >
-              Delete
-            </Button>
-          </DialogActions>
-        </Dialog>
       </Box>
     </Box>
   );
 }
 
 export default App;
-
-
-
-// app.put('/api/tenders/:N_o', async (req, res) => {
-//   try {
-//     const { N_o } = req.params;
-//     const [updated] = await Tender.update(req.body, {
-//       where: { N_o }
-//     });
-//     if (updated) {
-//       const updatedTender = await Tender.findByPk(N_o);
-//       return res.json(updatedTender);
-//     }
-//     res.status(404).json({ error: 'Tender not found' });
-//   } catch (err) {
-//     console.error('Error updating tender:', err);
-//     res.status(500).json({ error: 'Database error', details: err.message });
-//   }
-// });

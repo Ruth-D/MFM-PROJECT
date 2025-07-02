@@ -25,9 +25,7 @@
 }
 
 .tableHead {
-  /* background-color: #213d50; */
   color: black;
-  /* align-items: center; */
   text-align: center;
 }
 
@@ -47,20 +45,17 @@
   opacity: 1 !important;
 }
 
-/* ✅ Header background color */
 .MuiTableHead-root .MuiTableCell-head {
-  background-color: #1976d2; /* Use any color you like */
+  background-color: #213d50; 
   color: white;
   font-weight: bold;
   font-size: 14px;
 }
 
-/* ✅ Always show sort icon */
 .MuiTableSortLabel-icon {
   opacity: 1 !important;
 }
 
-/* ✅ Sort icon and text color when active */
 .MuiTableSortLabel-root.Mui-active {
   color: white;
 }
@@ -68,7 +63,6 @@
   color: white;
 }
 
-/* ✅ Alternate row background */
 .evenRow {
   background-color: #f5f7fa;
 }
@@ -76,7 +70,6 @@
   background-color: #ffffff;
 }
 
-/* ✅ Row hover effect */
 .MuiTableRow-root:hover {
   background-color: #e0efff !important;
   transition: background-color 0.3s ease;
