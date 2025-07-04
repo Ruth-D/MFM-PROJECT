@@ -1,7 +1,13 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import "./App.css";
-import {Table,TableBody,TableCell,TableContainer,TableHead,TableRow,
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   Paper,
   Typography,
   IconButton,
@@ -17,13 +23,14 @@ import {Table,TableBody,TableCell,TableContainer,TableHead,TableRow,
   DialogActions,
   Button,
 } from "@mui/material";
-import FilterListIcon from "@mui/icons-material/FilterList";
+import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import TablePagination from "@mui/material/TablePagination";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import SearchIcon from "@mui/icons-material/Search";
-import SideNav from "./SideNav"; 
+import CloseIcon from "@mui/icons-material/Close";
+import SideNav from "./SideNav";
 
 function App() {
   const [tenders, setTenders] = useState([]);
@@ -72,10 +79,12 @@ function App() {
     setPage(0);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (N_o) => {
     try {
-      await axios.delete(`http://localhost:5000/api/tenders/${id}`);
-      fetchTenders();
+      const numN_o = Number(N_o); // Ensure it's a number
+      console.log("Deleting N_o:", numN_o); // Debug
+      await axios.delete(`http://localhost:5000/api/tenders/${numN_o}`);
+      fetchTenders(); // Refresh the list after deletion
     } catch (err) {
       console.error("Error deleting:", err);
     }
@@ -105,9 +114,9 @@ function App() {
     }
   };
 
-  const handleMenuOpen = (e, id) => {
+  const handleMenuOpen = (e, N_o) => {
     setMenuAnchorEl(e.currentTarget);
-    setSelectedTenderId(id);
+    setSelectedTenderId(Number(N_o)); // Ensure it's a number
   };
 
   const handleMenuClose = () => {
@@ -136,7 +145,7 @@ function App() {
     { key: "Region", label: "Region" },
     { key: "Amount", label: "Amount" },
     { key: "Remark", label: "Remark" },
-    { key: "Actions", label: "Actions", filterable: false },
+    { key: "Actions", label: "Actions", filterable: false, sortable: false },
   ];
 
   const regionOptions = [
@@ -178,9 +187,16 @@ function App() {
       data.sort((a, b) => {
         const valA = a[sortConfig.key] ?? "";
         const valB = b[sortConfig.key] ?? "";
+        // Check if both values are numbers
+        if (!isNaN(valA) && !isNaN(valB) && valA !== "" && valB !== "") {
+          return sortConfig.direction === "asc"
+            ? Number(valA) - Number(valB)
+            : Number(valB) - Number(valA);
+        }
+        // Otherwise, compare as strings
         return sortConfig.direction === "asc"
-          ? valA.localeCompare(valB)
-          : valB.localeCompare(valA);
+          ? String(valA).localeCompare(String(valB))
+          : String(valB).localeCompare(String(valA));
       });
     }
 
@@ -194,7 +210,6 @@ function App() {
       <SideNav />
       <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
         <Typography variant="h5">Available Tenders</Typography>
-
         <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
           <TextField
             placeholder="Search..."
@@ -212,15 +227,9 @@ function App() {
             }}
           />
         </Box>
-
         <TableContainer component={Paper}>
           <Table size="small">
-            <TableHead
-              sx={{
-                backgroundColor: "#213d50",
-                "& th": { color: "#fff" },
-              }}
-            >
+            <TableHead>
               <TableRow>
                 {columns.map((col) => (
                   <TableCell key={col.key}>
@@ -250,7 +259,7 @@ function App() {
                           size="small"
                           onClick={() => toggleFilterVisibility(col.key)}
                         >
-                          <FilterListIcon fontSize="small" />
+                          <FilterAltIcon fontSize="small" />
                         </IconButton>
                       )}
                     </div>
@@ -297,7 +306,7 @@ function App() {
               {processedTenders
                 .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                 .map((tender, index) => (
-                  <TableRow key={tender.id}>
+                  <TableRow key={tender.N_o}>
                     <TableCell>{tender.N_o}</TableCell>
                     <TableCell>{tender.RefNum}</TableCell>
                     <TableCell>{tender.Description}</TableCell>
@@ -331,8 +340,6 @@ function App() {
           onRowsPerPageChange={handleChangeRowsPerPage}
           rowsPerPageOptions={[5, 10, 25, 100]}
         />
-
-        {/* Menu */}
         <Menu
           anchorEl={menuAnchorEl}
           open={Boolean(menuAnchorEl)}
@@ -347,7 +354,6 @@ function App() {
             Delete
           </MenuItem>
         </Menu>
-         {/* Edit Confirmation Dialog */}
         <Dialog
           open={editOpen}
           onClose={() => setEditOpen(false)}
@@ -371,10 +377,24 @@ function App() {
               pb: 2,
               borderTopLeftRadius: 12,
               borderTopRightRadius: 12,
+              justifyContent: "space-between",
             }}
           >
-            <EditIcon sx={{ mr: 1 }} />
-            Edit Tender
+            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <EditIcon sx={{ mr: 1 }} />
+              Edit Tender
+            </span>
+            <IconButton
+              aria-label="close"
+              onClick={() => setEditOpen(false)}
+              sx={{
+                color: "#fff",
+                ml: 2,
+                p: 0.5,
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
           </DialogTitle>
           <DialogContent sx={{ pt: 3 }}>
             {editTender && (
@@ -512,22 +532,3 @@ function App() {
 }
 
 export default App;
-
-
-
-// app.put('/api/tenders/:N_o', async (req, res) => {
-//   try {
-//     const { N_o } = req.params;
-//     const [updated] = await Tender.update(req.body, {
-//       where: { N_o }
-//     });
-//     if (updated) {
-//       const updatedTender = await Tender.findByPk(N_o);
-//       return res.json(updatedTender);
-//     }
-//     res.status(404).json({ error: 'Tender not found' });
-//   } catch (err) {
-//     console.error('Error updating tender:', err);
-//     res.status(500).json({ error: 'Database error', details: err.message });
-//   }
-// });
