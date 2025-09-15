@@ -25,6 +25,8 @@ import {
 } from "@mui/material";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import TablePagination from "@mui/material/TablePagination";
+import Pagination from "@mui/material/Pagination";
+import Stack from '@mui/material/Stack';
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
@@ -34,6 +36,8 @@ import SideNav from "./SideNav";
 
 function App() {
   const [tenders, setTenders] = useState([]);
+  const [totalTenders, setTotalTenders] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [filters, setFilters] = useState({});
   const [visibleFilters, setVisibleFilters] = useState({});
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
@@ -45,15 +49,37 @@ function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [editOpen, setEditOpen] = useState(false);
   const [editTender, setEditTender] = useState(null);
+  const [deleteSuccess, setDeleteSuccess] = useState(false);
 
   useEffect(() => {
-    fetchTenders();
-  }, []);
+    fetchTenders(page + 1, rowsPerPage, filters, searchTerm);
+  }, [page, rowsPerPage, filters, searchTerm, sortConfig]);
 
-  const fetchTenders = () => {
+  const fetchTenders = (pageNum = 1, pageSize = 5, filtersObj = {}, search = "") => {
+    // Build query params for filters, search, and sorting
+    const params = new URLSearchParams();
+    params.append("page", pageNum);
+    params.append("pageSize", pageSize);
+    if (search) params.append("search", search);
+    Object.entries(filtersObj).forEach(([key, value]) => {
+      if (value) params.append(key, value);
+    });
+    // Add sorting
+    if (sortConfig.key) {
+      params.append("sortKey", sortConfig.key);
+      params.append("sortDirection", sortConfig.direction);
+    }
     axios
-      .get("http://localhost:5000/api/tenders")
-      .then((res) => setTenders(res.data))
+      .get(`http://localhost:5000/api/tenders?${params.toString()}`)
+      .then((res) => {
+        setTenders(res.data.tenders);
+        setTotalTenders(res.data.total);
+        setTotalPages(res.data.totalPages);
+        // If current page is out of range (e.g. after deletion), reset to last page
+        if (res.data.totalPages > 0 && pageNum > res.data.totalPages) {
+          setPage(res.data.totalPages - 1);
+        }
+      })
       .catch((err) => console.error("Error fetching tenders:", err));
   };
 
@@ -67,26 +93,52 @@ function App() {
 
   const handleFilterChange = (key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
+    setPage(0); // Reset to first page when filter changes
   };
 
   const toggleFilterVisibility = (key) => {
     setVisibleFilters((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleChangePage = (event, newPage) => setPage(newPage);
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+  const handlePaginationChange = (event, value) => {
+    setPage(value - 1);
+  };
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
 
   const handleDelete = async (N_o) => {
+    // Ensure N_o is the exact value from the tender object displayed in the table
+    const validId = Number(N_o);
+    console.log('[Delete] Attempting to delete tender with N_o:', N_o, 'Parsed as:', validId);
+    if (isNaN(validId) || validId <= 0) {
+      alert("Invalid tender ID for deletion.");
+      return;
+    }
     try {
-      const numN_o = Number(N_o); // Ensure it's a number
-      console.log("Deleting N_o:", numN_o); // Debug
-      await axios.delete(`http://localhost:5000/api/tenders/${numN_o}`);
-      fetchTenders(); // Refresh the list after deletion
+      await axios.delete(`http://localhost:5000/api/tenders/${validId}`);
+      console.log('[Delete] Successfully deleted tender with N_o:', validId);
+      setDeleteSuccess(true);
+      fetchTenders();
     } catch (err) {
-      console.error("Error deleting:", err);
+      console.error("Error deleting:", err?.response?.data || err.message);
+      alert("Failed to delete tender.");
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    // Always use the N_o as displayed in the table (from selectedTenderId)
+    const N_o = Number(selectedTenderId);
+    console.log('[Delete] Confirm dialog for N_o:', selectedTenderId, 'Parsed as:', N_o);
+    if (!isNaN(N_o) && N_o > 0) {
+      await handleDelete(N_o);
+      setConfirmOpen(false);
+    } else {
+      alert("Invalid tender ID for deletion.");
     }
   };
 
@@ -116,24 +168,29 @@ function App() {
 
   const handleMenuOpen = (e, N_o) => {
     setMenuAnchorEl(e.currentTarget);
-    setSelectedTenderId(Number(N_o)); // Ensure it's a number
+    setSelectedTenderId(Number(N_o)); // Always store as number
   };
 
   const handleMenuClose = () => {
     setMenuAnchorEl(null);
-    setSelectedTenderId(null);
+    // Do NOT clear selectedTenderId here; keep it until after delete/cancel
   };
 
-  const handleDeleteClick = () => {
+  const handleDeleteClick = (tender) => {
+    // Always set the selectedTenderId from the tender object displayed in the table
+    console.log('[Delete] Delete menu clicked for tender:', tender);
+    setSelectedTenderId(tender.N_o);
     setConfirmOpen(true);
     handleMenuClose();
   };
 
-  const handleConfirmClose = () => setConfirmOpen(false);
-
-  const handleConfirmDelete = async () => {
-    if (selectedTenderId) await handleDelete(selectedTenderId);
+  const handleConfirmClose = () => {
     setConfirmOpen(false);
+    setSelectedTenderId(null);
+  };
+
+  const handleDeleteSuccessClose = () => {
+    setDeleteSuccess(false);
   };
 
   const columns = [
@@ -155,55 +212,10 @@ function App() {
     ...new Set(tenders.map((t) => t.Description).filter(Boolean)),
   ];
 
-  const getProcessedData = () => {
-    let data = [...tenders];
+  // Filtering and searching are now handled by the backend
+  const processedTenders = tenders;
 
-    if (searchTerm.trim()) {
-      data = data.filter((item) =>
-        Object.entries(item)
-          .map(([key, value]) => {
-            if (key.toLowerCase().includes("date") && !isNaN(new Date(value))) {
-              return new Date(value).toLocaleDateString();
-            }
-            return String(value ?? "");
-          })
-          .join(" ")
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase())
-      );
-    }
-
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) {
-        data = data.filter((item) =>
-          String(item[key] ?? "")
-            .toLowerCase()
-            .includes(value.toLowerCase())
-        );
-      }
-    });
-
-    if (sortConfig.key) {
-      data.sort((a, b) => {
-        const valA = a[sortConfig.key] ?? "";
-        const valB = b[sortConfig.key] ?? "";
-        // Check if both values are numbers
-        if (!isNaN(valA) && !isNaN(valB) && valA !== "" && valB !== "") {
-          return sortConfig.direction === "asc"
-            ? Number(valA) - Number(valB)
-            : Number(valB) - Number(valA);
-        }
-        // Otherwise, compare as strings
-        return sortConfig.direction === "asc"
-          ? String(valA).localeCompare(String(valB))
-          : String(valB).localeCompare(String(valA));
-      });
-    }
-
-    return data;
-  };
-
-  const processedTenders = getProcessedData();
+  // Only slice if you want to support frontend filtering/sorting. For backend pagination, do not slice.
 
   return (
     <Box sx={{ display: "flex" }}>
@@ -239,6 +251,7 @@ function App() {
                         justifyContent: "space-between",
                       }}
                     >
+          {/* Debug panel: show tenders and DataGrid rows */}
                       <TableSortLabel
                         active={sortConfig.key === col.key}
                         direction={
@@ -258,8 +271,9 @@ function App() {
                         <IconButton
                           size="small"
                           onClick={() => toggleFilterVisibility(col.key)}
+                          sx={{ color: 'white' }}
                         >
-                          <FilterAltIcon fontSize="small" />
+                          <FilterAltIcon fontSize="small" sx={{ color: 'white' }} />
                         </IconButton>
                       )}
                     </div>
@@ -303,57 +317,93 @@ function App() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {processedTenders
-                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                .map((tender, index) => (
-                  <TableRow key={tender.N_o}>
-                    <TableCell>{tender.N_o}</TableCell>
-                    <TableCell>{tender.RefNum}</TableCell>
-                    <TableCell>{tender.Description}</TableCell>
-                    <TableCell>
-                      {new Date(tender.StartDate).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(tender.EndDate).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>{tender.Region}</TableCell>
-                    <TableCell>{tender.Amount?.toLocaleString()}</TableCell>
-                    <TableCell>{tender.Remark}</TableCell>
-                    <TableCell>
-                      <IconButton
-                        onClick={(e) => handleMenuOpen(e, tender.N_o)}
-                      >
-                        <MoreVertIcon />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
+              {processedTenders.map((tender) => (
+                <TableRow key={tender.N_o}>
+                  <TableCell>{tender.N_o}</TableCell>
+                  <TableCell>{tender.RefNum}</TableCell>
+                  <TableCell>{tender.Description}</TableCell>
+                  <TableCell>{new Date(tender.StartDate).toLocaleDateString()}</TableCell>
+                  <TableCell>{new Date(tender.EndDate).toLocaleDateString()}</TableCell>
+                  <TableCell>{tender.Region}</TableCell>
+                  <TableCell>{tender.Amount?.toLocaleString()}</TableCell>
+                  <TableCell>{tender.Remark}</TableCell>
+                  <TableCell>
+                    <IconButton onClick={(e) => handleMenuOpen(e, tender.N_o)}>
+                      <MoreVertIcon />
+                    </IconButton>
+                    <Menu
+                      anchorEl={menuAnchorEl}
+                      open={Boolean(menuAnchorEl) && selectedTenderId === tender.N_o}
+                      onClose={handleMenuClose}
+                    >
+                      <MenuItem onClick={() => handleEdit(tender.N_o)}>
+                        <EditIcon fontSize="small" sx={{ mr: 1 }} />
+                        Edit
+                      </MenuItem>
+                      <MenuItem onClick={() => handleDeleteClick(tender)}>
+                        <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+                        Delete
+                      </MenuItem>
+                    </Menu>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </TableContainer>
+        {/* Display count of items on this page */}
+        <Typography variant="body2" sx={{ mt: 1, mb: 0, textAlign: 'right', color: 'text.secondary' }}>
+          Showing {processedTenders.length} of {totalTenders} tenders
+        </Typography>
         <TablePagination
           component="div"
-          count={processedTenders.length}
+          count={totalTenders}
           page={page}
           onPageChange={handleChangePage}
           rowsPerPage={rowsPerPage}
           onRowsPerPageChange={handleChangeRowsPerPage}
           rowsPerPageOptions={[5, 10, 25, 100]}
+          nextIconButtonProps={{ disabled: totalPages <= 1 }}
+          backIconButtonProps={{ disabled: totalPages <= 1 }}
         />
-        <Menu
-          anchorEl={menuAnchorEl}
-          open={Boolean(menuAnchorEl)}
-          onClose={handleMenuClose}
-        >
-          <MenuItem onClick={() => handleEdit(selectedTenderId)}>
-            <EditIcon fontSize="small" sx={{ mr: 1 }} />
-            Edit
-          </MenuItem>
-          <MenuItem onClick={handleDeleteClick}>
-            <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
-            Delete
-          </MenuItem>
-        </Menu>
+        <Stack spacing={2} sx={{ my: 2, alignItems: 'center' }}>
+          <Pagination
+            count={totalPages}
+            page={page + 1}
+            onChange={handlePaginationChange}
+            variant="outlined"
+            color="primary"
+            siblingCount={1}
+            boundaryCount={1}
+            showFirstButton
+            showLastButton
+            disabled={totalPages <= 1}
+          />
+        </Stack>
+          <Menu
+            anchorEl={menuAnchorEl}
+            open={Boolean(menuAnchorEl)}
+            onClose={handleMenuClose}
+          >
+            <MenuItem onClick={() => handleEdit(selectedTenderId)}>
+              <EditIcon fontSize="small" sx={{ mr: 1 }} />
+              Edit
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                // Always use selectedTenderId set by handleMenuOpen
+                if (selectedTenderId && !isNaN(Number(selectedTenderId))) {
+                  setConfirmOpen(true);
+                  handleMenuClose();
+                } else {
+                  alert('No tender selected for deletion.');
+                }
+              }}
+            >
+              <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+              Delete
+            </MenuItem>
+          </Menu>
         <Dialog
           open={editOpen}
           onClose={() => setEditOpen(false)}
@@ -524,6 +574,18 @@ function App() {
             >
               Delete
             </Button>
+          </DialogActions>
+        </Dialog>
+        {/* Delete Success Message */}
+        <Dialog open={deleteSuccess} onClose={handleDeleteSuccessClose}>
+          <DialogTitle>Delete Successful</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              Tender was deleted successfully.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleDeleteSuccessClose} autoFocus>OK</Button>
           </DialogActions>
         </Dialog>
       </Box>
