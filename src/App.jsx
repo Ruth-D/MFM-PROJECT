@@ -33,14 +33,102 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
 import SideNav from "./SideNav";
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import AddTender from './AddTender.jsx';
 
 function App() {
+  const location = useLocation();
+  // Determine selected tab from route
+  const selectedTab = location.pathname === '/add-tender' ? 'add' : 'tenders';
+  // Handler to change tab and route
+  const handleTabChange = (tab) => {
+    if (tab === 'tenders') navigate('/');
+    else if (tab === 'add') navigate('/add-tender');
+  };
+  // Delete success dialog close handler
+  const handleDeleteSuccessClose = () => {
+    setDeleteSuccess(false);
+  };
+  // Confirm delete handler
+  const handleConfirmDelete = async () => {
+    const N_o = Number(selectedTenderId);
+    if (!isNaN(N_o) && N_o > 0) {
+      await handleDelete(N_o);
+      setConfirmOpen(false);
+    } else {
+      alert("Invalid tender ID for deletion.");
+    }
+  };
+  // Confirm dialog close handler
+  const handleConfirmClose = () => {
+    setConfirmOpen(false);
+  };
+  // Edit save handler
+  const handleEditSave = async () => {
+    try {
+      await axios.put(
+        `http://localhost:5000/api/tenders/${editTender.N_o}`,
+        editTender
+      );
+      setEditOpen(false);
+      fetchTenders();
+    } catch (err) {
+      console.error("Error updating:", err);
+    }
+  };
+  // Menu handlers
+  const handleMenuOpen = (e, N_o) => {
+    setMenuAnchorEl(e.currentTarget);
+    setSelectedTenderId(Number(N_o));
+  };
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+    // Do NOT clear selectedTenderId here; keep it until after delete/cancel
+  };
+  // Pagination handlers
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+  const handlePaginationChange = (event, value) => {
+    setPage(value - 1);
+  };
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+  const navigate = typeof useNavigate === 'function' ? useNavigate() : () => {};
+
+  // State definitions must come first
   const [tenders, setTenders] = useState([]);
   const [totalTenders, setTotalTenders] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [filters, setFilters] = useState({});
   const [visibleFilters, setVisibleFilters] = useState({});
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+
+  // Table columns definition
+  const columns = [
+    { key: "N_o", label: "NO", filterable: false },
+    { key: "RefNum", label: "Reference Number" },
+    { key: "Description", label: "Description" },
+    { key: "StartDate", label: "Start Date", filterable: false },
+    { key: "EndDate", label: "End Date", filterable: false },
+    { key: "Region", label: "Region" },
+    { key: "Amount", label: "Amount" },
+    { key: "Remark", label: "Remark" },
+    { key: "Actions", label: "Actions", filterable: false, sortable: false },
+  ];
+
+  // Options for filters
+  const regionOptions = [
+    ...new Set(tenders.map((t) => t.Region).filter(Boolean)),
+  ];
+  const descriptionOptions = [
+    ...new Set(tenders.map((t) => t.Description).filter(Boolean)),
+  ];
+
+  // For backend-driven filtering, just use tenders as-is
+  const processedTenders = tenders;
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
@@ -91,506 +179,398 @@ function App() {
     setSortConfig({ key, direction });
   };
 
-  const handleFilterChange = (key, value) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
-    setPage(0); // Reset to first page when filter changes
-  };
-
-  const toggleFilterVisibility = (key) => {
-    setVisibleFilters((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
-  const handlePaginationChange = (event, value) => {
-    setPage(value - 1);
-  };
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
-  const handleDelete = async (N_o) => {
-    // Ensure N_o is the exact value from the tender object displayed in the table
-    const validId = Number(N_o);
-    console.log('[Delete] Attempting to delete tender with N_o:', N_o, 'Parsed as:', validId);
-    if (isNaN(validId) || validId <= 0) {
-      alert("Invalid tender ID for deletion.");
-      return;
-    }
-    try {
-      await axios.delete(`http://localhost:5000/api/tenders/${validId}`);
-      console.log('[Delete] Successfully deleted tender with N_o:', validId);
-      setDeleteSuccess(true);
-      fetchTenders();
-    } catch (err) {
-      console.error("Error deleting:", err?.response?.data || err.message);
-      alert("Failed to delete tender.");
-    }
-  };
-
-  const handleConfirmDelete = async () => {
-    // Always use the N_o as displayed in the table (from selectedTenderId)
-    const N_o = Number(selectedTenderId);
-    console.log('[Delete] Confirm dialog for N_o:', selectedTenderId, 'Parsed as:', N_o);
-    if (!isNaN(N_o) && N_o > 0) {
-      await handleDelete(N_o);
-      setConfirmOpen(false);
-    } else {
-      alert("Invalid tender ID for deletion.");
-    }
-  };
-
-  const handleEdit = (N_o) => {
-    const tender = tenders.find((t) => t.N_o === N_o);
-    setEditTender({ ...tender });
-    setEditOpen(true);
-    handleMenuClose();
-  };
-
-  const handleEditChange = (key, value) => {
-    setEditTender((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const handleEditSave = async () => {
-    try {
-      await axios.put(
-        `http://localhost:5000/api/tenders/${editTender.N_o}`,
-        editTender
-      );
-      setEditOpen(false);
-      fetchTenders();
-    } catch (err) {
-      console.error("Error updating:", err);
-    }
-  };
-
-  const handleMenuOpen = (e, N_o) => {
-    setMenuAnchorEl(e.currentTarget);
-    setSelectedTenderId(Number(N_o)); // Always store as number
-  };
-
-  const handleMenuClose = () => {
-    setMenuAnchorEl(null);
-    // Do NOT clear selectedTenderId here; keep it until after delete/cancel
-  };
-
-  const handleDeleteClick = (tender) => {
-    // Always set the selectedTenderId from the tender object displayed in the table
-    console.log('[Delete] Delete menu clicked for tender:', tender);
-    setSelectedTenderId(tender.N_o);
-    setConfirmOpen(true);
-    handleMenuClose();
-  };
-
-  const handleConfirmClose = () => {
-    setConfirmOpen(false);
-    setSelectedTenderId(null);
-  };
-
-  const handleDeleteSuccessClose = () => {
-    setDeleteSuccess(false);
-  };
-
-  const columns = [
-    { key: "N_o", label: "NO", filterable: false },
-    { key: "RefNum", label: "Reference Number" },
-    { key: "Description", label: "Description" },
-    { key: "StartDate", label: "Start Date", filterable: false },
-    { key: "EndDate", label: "End Date", filterable: false },
-    { key: "Region", label: "Region" },
-    { key: "Amount", label: "Amount" },
-    { key: "Remark", label: "Remark" },
-    { key: "Actions", label: "Actions", filterable: false, sortable: false },
-  ];
-
-  const regionOptions = [
-    ...new Set(tenders.map((t) => t.Region).filter(Boolean)),
-  ];
-  const descriptionOptions = [
-    ...new Set(tenders.map((t) => t.Description).filter(Boolean)),
-  ];
-
-  // Filtering and searching are now handled by the backend
-  const processedTenders = tenders;
-
-  // Only slice if you want to support frontend filtering/sorting. For backend pagination, do not slice.
-
   return (
     <Box sx={{ display: "flex" }}>
-      <SideNav />
+      <SideNav selectedTab={selectedTab} onTabChange={handleTabChange} />
       <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
-        <Typography variant="h5">Available Tenders</Typography>
-        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
-          <TextField
-            placeholder="Search..."
-            variant="outlined"
-            size="small"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            sx={{ width: 300 }}
-            InputProps={{
-              endAdornment: (
-                <IconButton disabled>
-                  <SearchIcon />
-                </IconButton>
-              ),
-            }}
-          />
-        </Box>
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                {columns.map((col) => (
-                  <TableCell key={col.key}>
-                    <div
-                      style={{
+        <Routes>
+          <Route path="/add-tender" element={<AddTender />} />
+          <Route path="/" element={
+            <>
+              {selectedTab === 'tenders' && (
+                <>
+                  <Typography variant="h5">Available Tenders</Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, mt: 1 }}>
+                    <Button 
+                      variant="contained" 
+                      sx={{ minWidth: 140, backgroundColor: '#18471aff', color: '#fff', '&:hover': { backgroundColor: '#43a047' } }}
+                      onClick={() => navigate('/add-tender')}
+                    >
+                      Add Tender
+                    </Button>
+                    <TextField
+                      placeholder="Search..."
+                      variant="outlined"
+                      size="small"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      sx={{ width: 300 }}
+                      InputProps={{
+                        endAdornment: (
+                          <IconButton disabled>
+                            <SearchIcon />
+                          </IconButton>
+                        ),
+                      }}
+                    />
+                  </Box>
+                  <TableContainer component={Paper}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          {columns.map((col) => (
+                            <TableCell key={col.key}>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                }}
+                              >
+                                <TableSortLabel
+                                  active={sortConfig.key === col.key}
+                                  direction={
+                                    sortConfig.key === col.key
+                                      ? sortConfig.direction
+                                      : "asc"
+                                  }
+                                  onClick={() => handleSort(col.key)}
+                                  sx={{
+                                    color: "white",
+                                    "& .MuiTableSortLabel-icon": { color: "white" },
+                                  }}
+                                >
+                                  <strong>{col.label}</strong>
+                                </TableSortLabel>
+                                {col.filterable !== false && (
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => toggleFilterVisibility(col.key)}
+                                    sx={{ color: 'white' }}
+                                  >
+                                    <FilterAltIcon fontSize="small" sx={{ color: 'white' }} />
+                                  </IconButton>
+                                )}
+                              </div>
+                              {col.filterable !== false &&
+                                visibleFilters[col.key] &&
+                                (col.key === "Region" || col.key === "Description" ? (
+                                  <TextField
+                                    select
+                                    fullWidth
+                                    variant="standard"
+                                    size="small"
+                                    value={filters[col.key] || ""}
+                                    onChange={(e) =>
+                                      handleFilterChange(col.key, e.target.value)
+                                    }
+                                    SelectProps={{ native: true }}
+                                  >
+                                    <option value="">All</option>
+                                    {(col.key === "Region"
+                                      ? regionOptions
+                                      : descriptionOptions
+                                    ).map((option, i) => (
+                                      <option key={i} value={option}>
+                                        {option}
+                                      </option>
+                                    ))}
+                                  </TextField>
+                                ) : (
+                                  <TextField
+                                    size="small"
+                                    variant="standard"
+                                    placeholder="Filter..."
+                                    onChange={(e) =>
+                                      handleFilterChange(col.key, e.target.value)
+                                    }
+                                    fullWidth
+                                  />
+                                ))}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {processedTenders.map((tender) => (
+                          <TableRow key={tender.N_o}>
+                            <TableCell>{tender.N_o}</TableCell>
+                            <TableCell>{tender.RefNum}</TableCell>
+                            <TableCell>{tender.Description}</TableCell>
+                            <TableCell>{new Date(tender.StartDate).toLocaleDateString()}</TableCell>
+                            <TableCell>{new Date(tender.EndDate).toLocaleDateString()}</TableCell>
+                            <TableCell>{tender.Region}</TableCell>
+                            <TableCell>{tender.Amount?.toLocaleString()}</TableCell>
+                            <TableCell>{tender.Remark}</TableCell>
+                            <TableCell>
+                              <IconButton onClick={(e) => handleMenuOpen(e, tender.N_o)}>
+                                <MoreVertIcon />
+                              </IconButton>
+                              <Menu
+                                anchorEl={menuAnchorEl}
+                                open={Boolean(menuAnchorEl) && selectedTenderId === tender.N_o}
+                                onClose={handleMenuClose}
+                              >
+                                <MenuItem onClick={() => handleEdit(tender.N_o)}>
+                                  <EditIcon fontSize="small" sx={{ mr: 1 }} />
+                                  Edit
+                                </MenuItem>
+                                <MenuItem onClick={() => handleDeleteClick(tender)}>
+                                  <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+                                  Delete
+                                </MenuItem>
+                              </Menu>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                  {/* Display count of items on this page */}
+                  <Typography variant="body2" sx={{ mt: 1, mb: 0, textAlign: 'right', color: 'text.secondary' }}>
+                    Showing {processedTenders.length} of {totalTenders} tenders
+                  </Typography>
+                  <TablePagination
+                    component="div"
+                    count={totalTenders}
+                    page={page}
+                    onPageChange={handleChangePage}
+                    rowsPerPage={rowsPerPage}
+                    onRowsPerPageChange={handleChangeRowsPerPage}
+                    rowsPerPageOptions={[5, 10, 25, 100]}
+                    nextIconButtonProps={{ disabled: totalPages <= 1 }}
+                    backIconButtonProps={{ disabled: totalPages <= 1 }}
+                  />
+                  <Stack spacing={2} sx={{ my: 2, alignItems: 'center' }}>
+                    <Pagination
+                      count={totalPages}
+                      page={page + 1}
+                      onChange={handlePaginationChange}
+                      variant="outlined"
+                      color="primary"
+                      siblingCount={1}
+                      boundaryCount={1}
+                      showFirstButton
+                      showLastButton
+                      disabled={totalPages <= 1}
+                    />
+                  </Stack>
+                  <Menu
+                    anchorEl={menuAnchorEl}
+                    open={Boolean(menuAnchorEl)}
+                    onClose={handleMenuClose}
+                  >
+                    <MenuItem onClick={() => handleEdit(selectedTenderId)}>
+                      <EditIcon fontSize="small" sx={{ mr: 1 }} />
+                      Edit
+                    </MenuItem>
+                    <MenuItem
+                      onClick={() => {
+                        // Always use selectedTenderId set by handleMenuOpen
+                        if (selectedTenderId && !isNaN(Number(selectedTenderId))) {
+                          setConfirmOpen(true);
+                          handleMenuClose();
+                        } else {
+                          alert('No tender selected for deletion.');
+                        }
+                      }}
+                    >
+                      <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+                      Delete
+                    </MenuItem>
+                  </Menu>
+                  <Dialog
+                    open={editOpen}
+                    onClose={() => setEditOpen(false)}
+                    maxWidth="sm"
+                    fullWidth
+                    PaperProps={{
+                      sx: {
+                        borderRadius: 3,
+                        background: "#f7fbfc",
+                        boxShadow: 8,
+                      },
+                    }}
+                  >
+                    <DialogTitle
+                      sx={{
+                        background: "#213d50",
+                        color: "#fff",
                         display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        pb: 2,
+                        borderTopLeftRadius: 12,
+                        borderTopRightRadius: 12,
                         justifyContent: "space-between",
                       }}
                     >
-          {/* Debug panel: show tenders and DataGrid rows */}
-                      <TableSortLabel
-                        active={sortConfig.key === col.key}
-                        direction={
-                          sortConfig.key === col.key
-                            ? sortConfig.direction
-                            : "asc"
-                        }
-                        onClick={() => handleSort(col.key)}
+                      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <EditIcon sx={{ mr: 1 }} />
+                        Edit Tender
+                      </span>
+                      <IconButton
+                        aria-label="close"
+                        onClick={() => setEditOpen(false)}
                         sx={{
-                          color: "white",
-                          "& .MuiTableSortLabel-icon": { color: "white" },
+                          color: "#fff",
+                          ml: 2,
+                          p: 0.5,
                         }}
                       >
-                        <strong>{col.label}</strong>
-                      </TableSortLabel>
-                      {col.filterable !== false && (
-                        <IconButton
-                          size="small"
-                          onClick={() => toggleFilterVisibility(col.key)}
-                          sx={{ color: 'white' }}
+                        <CloseIcon />
+                      </IconButton>
+                    </DialogTitle>
+                    <DialogContent sx={{ pt: 3 }}>
+                      {editTender && (
+                        <Box
+                          component="form"
+                          sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 2,
+                          }}
                         >
-                          <FilterAltIcon fontSize="small" sx={{ color: 'white' }} />
-                        </IconButton>
+                          <TextField
+                            margin="dense"
+                            label="Reference Number"
+                            fullWidth
+                            variant="outlined"
+                            value={editTender.RefNum || ""}
+                            onChange={(e) => handleEditChange("RefNum", e.target.value)}
+                          />
+                          <TextField
+                            margin="dense"
+                            label="Description"
+                            fullWidth
+                            variant="outlined"
+                            value={editTender.Description || ""}
+                            onChange={(e) =>
+                              handleEditChange("Description", e.target.value)
+                            }
+                          />
+                          <Box sx={{ display: "flex", gap: 2 }}>
+                            <TextField
+                              margin="dense"
+                              label="Start Date"
+                              type="date"
+                              fullWidth
+                              variant="outlined"
+                              InputLabelProps={{ shrink: true }}
+                              value={
+                                editTender.StartDate
+                                  ? editTender.StartDate.slice(0, 10)
+                                  : ""
+                              }
+                              onChange={(e) =>
+                                handleEditChange("StartDate", e.target.value)
+                              }
+                            />
+                            <TextField
+                              margin="dense"
+                              label="End Date"
+                              type="date"
+                              fullWidth
+                              variant="outlined"
+                              InputLabelProps={{ shrink: true }}
+                              value={
+                                editTender.EndDate ? editTender.EndDate.slice(0, 10) : ""
+                              }
+                              onChange={(e) =>
+                                handleEditChange("EndDate", e.target.value)
+                              }
+                            />
+                          </Box>
+                          <Box sx={{ display: "flex", gap: 2 }}>
+                            <TextField
+                              margin="dense"
+                              label="Region"
+                              fullWidth
+                              variant="outlined"
+                              value={editTender.Region || ""}
+                              onChange={(e) => handleEditChange("Region", e.target.value)}
+                            />
+                            <TextField
+                              margin="dense"
+                              label="Amount"
+                              type="number"
+                              fullWidth
+                              variant="outlined"
+                              value={editTender.Amount || ""}
+                              onChange={(e) => handleEditChange("Amount", e.target.value)}
+                            />
+                          </Box>
+                          <TextField
+                            margin="dense"
+                            label="Remark"
+                            fullWidth
+                            variant="outlined"
+                            multiline
+                            minRows={2}
+                            value={editTender.Remark || ""}
+                            onChange={(e) => handleEditChange("Remark", e.target.value)}
+                          />
+                        </Box>
                       )}
-                    </div>
-                    {col.filterable !== false &&
-                      visibleFilters[col.key] &&
-                      (col.key === "Region" || col.key === "Description" ? (
-                        <TextField
-                          select
-                          fullWidth
-                          variant="standard"
-                          size="small"
-                          value={filters[col.key] || ""}
-                          onChange={(e) =>
-                            handleFilterChange(col.key, e.target.value)
-                          }
-                          SelectProps={{ native: true }}
-                        >
-                          <option value="">All</option>
-                          {(col.key === "Region"
-                            ? regionOptions
-                            : descriptionOptions
-                          ).map((option, i) => (
-                            <option key={i} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </TextField>
-                      ) : (
-                        <TextField
-                          size="small"
-                          variant="standard"
-                          placeholder="Filter..."
-                          onChange={(e) =>
-                            handleFilterChange(col.key, e.target.value)
-                          }
-                          fullWidth
-                        />
-                      ))}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {processedTenders.map((tender) => (
-                <TableRow key={tender.N_o}>
-                  <TableCell>{tender.N_o}</TableCell>
-                  <TableCell>{tender.RefNum}</TableCell>
-                  <TableCell>{tender.Description}</TableCell>
-                  <TableCell>{new Date(tender.StartDate).toLocaleDateString()}</TableCell>
-                  <TableCell>{new Date(tender.EndDate).toLocaleDateString()}</TableCell>
-                  <TableCell>{tender.Region}</TableCell>
-                  <TableCell>{tender.Amount?.toLocaleString()}</TableCell>
-                  <TableCell>{tender.Remark}</TableCell>
-                  <TableCell>
-                    <IconButton onClick={(e) => handleMenuOpen(e, tender.N_o)}>
-                      <MoreVertIcon />
-                    </IconButton>
-                    <Menu
-                      anchorEl={menuAnchorEl}
-                      open={Boolean(menuAnchorEl) && selectedTenderId === tender.N_o}
-                      onClose={handleMenuClose}
-                    >
-                      <MenuItem onClick={() => handleEdit(tender.N_o)}>
-                        <EditIcon fontSize="small" sx={{ mr: 1 }} />
-                        Edit
-                      </MenuItem>
-                      <MenuItem onClick={() => handleDeleteClick(tender)}>
-                        <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+                    </DialogContent>
+                    <DialogActions sx={{ px: 3, pb: 2 }}>
+                      <Button
+                        onClick={() => setEditOpen(false)}
+                        variant="outlined"
+                        color="inherit"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleEditSave}
+                        variant="contained"
+                        color="primary"
+                        sx={{ boxShadow: 2 }}
+                        startIcon={<EditIcon />}
+                      >
+                        Save Changes
+                      </Button>
+                    </DialogActions>
+                  </Dialog>
+                  {/* Delete Confirmation Dialog */}
+                  <Dialog open={confirmOpen} onClose={handleConfirmClose}>
+                    <DialogTitle>Confirm Delete</DialogTitle>
+                    <DialogContent>
+                      <DialogContentText>
+                        Are you sure you want to delete this tender?
+                      </DialogContentText>
+                    </DialogContent>
+                    <DialogActions>
+                      <Button onClick={handleConfirmClose}>Cancel</Button>
+                      <Button
+                        onClick={handleConfirmDelete}
+                        color="error"
+                        variant="contained"
+                      >
                         Delete
-                      </MenuItem>
-                    </Menu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        {/* Display count of items on this page */}
-        <Typography variant="body2" sx={{ mt: 1, mb: 0, textAlign: 'right', color: 'text.secondary' }}>
-          Showing {processedTenders.length} of {totalTenders} tenders
-        </Typography>
-        <TablePagination
-          component="div"
-          count={totalTenders}
-          page={page}
-          onPageChange={handleChangePage}
-          rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          rowsPerPageOptions={[5, 10, 25, 100]}
-          nextIconButtonProps={{ disabled: totalPages <= 1 }}
-          backIconButtonProps={{ disabled: totalPages <= 1 }}
-        />
-        <Stack spacing={2} sx={{ my: 2, alignItems: 'center' }}>
-          <Pagination
-            count={totalPages}
-            page={page + 1}
-            onChange={handlePaginationChange}
-            variant="outlined"
-            color="primary"
-            siblingCount={1}
-            boundaryCount={1}
-            showFirstButton
-            showLastButton
-            disabled={totalPages <= 1}
-          />
-        </Stack>
-          <Menu
-            anchorEl={menuAnchorEl}
-            open={Boolean(menuAnchorEl)}
-            onClose={handleMenuClose}
-          >
-            <MenuItem onClick={() => handleEdit(selectedTenderId)}>
-              <EditIcon fontSize="small" sx={{ mr: 1 }} />
-              Edit
-            </MenuItem>
-            <MenuItem
-              onClick={() => {
-                // Always use selectedTenderId set by handleMenuOpen
-                if (selectedTenderId && !isNaN(Number(selectedTenderId))) {
-                  setConfirmOpen(true);
-                  handleMenuClose();
-                } else {
-                  alert('No tender selected for deletion.');
-                }
-              }}
-            >
-              <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
-              Delete
-            </MenuItem>
-          </Menu>
-        <Dialog
-          open={editOpen}
-          onClose={() => setEditOpen(false)}
-          maxWidth="sm"
-          fullWidth
-          PaperProps={{
-            sx: {
-              borderRadius: 3,
-              background: "#f7fbfc",
-              boxShadow: 8,
-            },
-          }}
-        >
-          <DialogTitle
-            sx={{
-              background: "#213d50",
-              color: "#fff",
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              pb: 2,
-              borderTopLeftRadius: 12,
-              borderTopRightRadius: 12,
-              justifyContent: "space-between",
-            }}
-          >
-            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <EditIcon sx={{ mr: 1 }} />
-              Edit Tender
-            </span>
-            <IconButton
-              aria-label="close"
-              onClick={() => setEditOpen(false)}
-              sx={{
-                color: "#fff",
-                ml: 2,
-                p: 0.5,
-              }}
-            >
-              <CloseIcon />
-            </IconButton>
-          </DialogTitle>
-          <DialogContent sx={{ pt: 3 }}>
-            {editTender && (
-              <Box
-                component="form"
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 2,
-                }}
-              >
-                <TextField
-                  margin="dense"
-                  label="Reference Number"
-                  fullWidth
-                  variant="outlined"
-                  value={editTender.RefNum || ""}
-                  onChange={(e) => handleEditChange("RefNum", e.target.value)}
-                />
-                <TextField
-                  margin="dense"
-                  label="Description"
-                  fullWidth
-                  variant="outlined"
-                  value={editTender.Description || ""}
-                  onChange={(e) =>
-                    handleEditChange("Description", e.target.value)
-                  }
-                />
-                <Box sx={{ display: "flex", gap: 2 }}>
-                  <TextField
-                    margin="dense"
-                    label="Start Date"
-                    type="date"
-                    fullWidth
-                    variant="outlined"
-                    InputLabelProps={{ shrink: true }}
-                    value={
-                      editTender.StartDate
-                        ? editTender.StartDate.slice(0, 10)
-                        : ""
-                    }
-                    onChange={(e) =>
-                      handleEditChange("StartDate", e.target.value)
-                    }
-                  />
-                  <TextField
-                    margin="dense"
-                    label="End Date"
-                    type="date"
-                    fullWidth
-                    variant="outlined"
-                    InputLabelProps={{ shrink: true }}
-                    value={
-                      editTender.EndDate ? editTender.EndDate.slice(0, 10) : ""
-                    }
-                    onChange={(e) =>
-                      handleEditChange("EndDate", e.target.value)
-                    }
-                  />
-                </Box>
-                <Box sx={{ display: "flex", gap: 2 }}>
-                  <TextField
-                    margin="dense"
-                    label="Region"
-                    fullWidth
-                    variant="outlined"
-                    value={editTender.Region || ""}
-                    onChange={(e) => handleEditChange("Region", e.target.value)}
-                  />
-                  <TextField
-                    margin="dense"
-                    label="Amount"
-                    type="number"
-                    fullWidth
-                    variant="outlined"
-                    value={editTender.Amount || ""}
-                    onChange={(e) => handleEditChange("Amount", e.target.value)}
-                  />
-                </Box>
-                <TextField
-                  margin="dense"
-                  label="Remark"
-                  fullWidth
-                  variant="outlined"
-                  multiline
-                  minRows={2}
-                  value={editTender.Remark || ""}
-                  onChange={(e) => handleEditChange("Remark", e.target.value)}
-                />
-              </Box>
-            )}
-          </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button
-              onClick={() => setEditOpen(false)}
-              variant="outlined"
-              color="inherit"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleEditSave}
-              variant="contained"
-              color="primary"
-              sx={{ boxShadow: 2 }}
-              startIcon={<EditIcon />}
-            >
-              Save Changes
-            </Button>
-          </DialogActions>
-        </Dialog>
-        {/* Delete Confirmation Dialog */}
-        <Dialog open={confirmOpen} onClose={handleConfirmClose}>
-          <DialogTitle>Confirm Delete</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              Are you sure you want to delete this tender?
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleConfirmClose}>Cancel</Button>
-            <Button
-              onClick={handleConfirmDelete}
-              color="error"
-              variant="contained"
-            >
-              Delete
-            </Button>
-          </DialogActions>
-        </Dialog>
-        {/* Delete Success Message */}
-        <Dialog open={deleteSuccess} onClose={handleDeleteSuccessClose}>
-          <DialogTitle>Delete Successful</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              Tender was deleted successfully.
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleDeleteSuccessClose} autoFocus>OK</Button>
-          </DialogActions>
-        </Dialog>
+                      </Button>
+                    </DialogActions>
+                  </Dialog>
+                  {/* Delete Success Message */}
+                  <Dialog open={deleteSuccess} onClose={handleDeleteSuccessClose}>
+                    <DialogTitle>Delete Successful</DialogTitle>
+                    <DialogContent>
+                      <DialogContentText>
+                        Tender was deleted successfully.
+                      </DialogContentText>
+                    </DialogContent>
+                    <DialogActions>
+                      <Button onClick={handleDeleteSuccessClose} autoFocus>OK</Button>
+                    </DialogActions>
+                  </Dialog>
+                </>
+              )}
+            </>
+          } />
+        </Routes>
       </Box>
     </Box>
   );
 }
 
 export default App;
+

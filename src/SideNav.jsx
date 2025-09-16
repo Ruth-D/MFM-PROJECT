@@ -17,7 +17,7 @@ import AddIcon from '@mui/icons-material/Add';
 
 const drawerWidth = 200;
 
-const SideNav = () => {
+const SideNav = ({ selectedTab, onTabChange }) => {
   return (
     <Drawer
       variant="permanent"
@@ -54,29 +54,16 @@ const SideNav = () => {
         <List>
           <ListItem
             button
+            selected={selectedTab === 'tenders'}
+            onClick={() => onTabChange('tenders')}
             sx={{
               borderRadius: 2,
               mb: 1,
-              "&:hover": { background: "#29506a" },
+              background: selectedTab === 'tenders' ? '#29506a' : 'inherit',
+              '&:hover': { background: '#29506a' },
             }}
           >
-            <ListItemIcon sx={{ color: "#fff", minWidth: 36 }}>
-              <HomeIcon />
-            </ListItemIcon>
-            <ListItemText
-              primary="Home"
-              primaryTypographyProps={{ fontSize: 15, fontWeight: 500 }}
-            />
-          </ListItem>
-          <ListItem
-            button
-            sx={{
-              borderRadius: 2,
-              mb: 1,
-              "&:hover": { background: "#29506a" },
-            }}
-          >
-            <ListItemIcon sx={{ color: "#fff", minWidth: 36 }}>
+            <ListItemIcon sx={{ color: '#fff', minWidth: 36 }}>
               <ListAltIcon />
             </ListItemIcon>
             <ListItemText
@@ -86,13 +73,16 @@ const SideNav = () => {
           </ListItem>
           <ListItem
             button
+            selected={selectedTab === 'add'}
+            onClick={() => onTabChange('add')}
             sx={{
               borderRadius: 2,
               mb: 1,
-              "&:hover": { background: "#29506a" },
+              background: selectedTab === 'add' ? '#29506a' : 'inherit',
+              '&:hover': { background: '#29506a' },
             }}
           >
-            <ListItemIcon sx={{ color: "#fff", minWidth: 36 }}>
+            <ListItemIcon sx={{ color: '#fff', minWidth: 36 }}>
               <AddIcon />
             </ListItemIcon>
             <ListItemText
@@ -103,13 +93,13 @@ const SideNav = () => {
         </List>
         <Box
           sx={{
-            borderTop: "1px solid #29506a",
+            borderTop: '1px solid #29506a',
             mt: 2,
             pt: 2,
-            textAlign: "center",
+            textAlign: 'center',
           }}
         >
-          <Typography variant="caption" sx={{ color: "#b0bec5" }}>
+          <Typography variant="caption" sx={{ color: '#b0bec5' }}>
             &copy; {new Date().getFullYear()} Tender
           </Typography>
         </Box>
