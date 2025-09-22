@@ -27,7 +27,7 @@ const SideNav = ({ selectedTab, onTabChange }) => {
         [`& .MuiDrawer-paper`]: {
           width: drawerWidth,
           boxSizing: "border-box",
-          background: "#213d50",
+          background: "#1a2e3b",
           color: "#fff",
           borderRight: "none",
         },
@@ -60,7 +60,7 @@ const SideNav = ({ selectedTab, onTabChange }) => {
               borderRadius: 2,
               mb: 1,
               background: selectedTab === 'tenders' ? '#29506a' : 'inherit',
-              '&:hover': { background: '#29506a' },
+              '&:hover': { background: '#4f838d' },
             }}
           >
             <ListItemIcon sx={{ color: '#fff', minWidth: 36 }}>
@@ -79,7 +79,7 @@ const SideNav = ({ selectedTab, onTabChange }) => {
               borderRadius: 2,
               mb: 1,
               background: selectedTab === 'add' ? '#29506a' : 'inherit',
-              '&:hover': { background: '#29506a' },
+              '&:hover': { background: '#4f838d' },
             }}
           >
             <ListItemIcon sx={{ color: '#fff', minWidth: 36 }}>

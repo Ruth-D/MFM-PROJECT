@@ -38,12 +38,40 @@ function AddTender() {
   };
 
   return (
-    <Box component="main" sx={{ flexGrow: 1, width: '100%', minHeight: 'calc(100vh - 48px)', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 0, m: 0 }}>
-      <Paper sx={{ p: 4, borderRadius: 3, boxShadow: 4, width: '100%', minHeight: 400, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <Typography variant="h5" sx={{ mb: 3 }}>
+  <Box
+  component="main"
+  sx={{
+    flexGrow: 1,
+    p: { xs: 1, sm: 3 },
+    background: "linear-gradient(135deg, #f7fafc 0%, #e3f0ff 100%)",
+    minHeight: "100vh",
+    display: "flex",
+    justifyContent: "center",   // horizontally centers the content
+    alignItems: "flex-start"    // vertically aligns to the top
+  }}
+>
+  <Paper
+    elevation={6}
+    sx={{
+      p: { xs: 2, sm: 4 },
+      borderRadius: 4,
+      boxShadow: 8,
+      maxWidth: 600,    // Adjust width so it doesn’t stretch too wide
+      width: "100%",
+      background: "#fff",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      mx: "auto"        // Ensures horizontal centering
+    }}
+  >
+        <Typography variant="h4" sx={{ mb: 2, fontWeight: 700, color: '#18471a' }}>
           Add New Tender
         </Typography>
-  <form onSubmit={handleSubmit} style={{ maxWidth: 600, width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <Typography variant="subtitle1" sx={{ mb: 3, color: 'text.secondary', textAlign: 'center' }}>
+          Please fill in the details below to create a new tender.
+        </Typography>
+        <form onSubmit={handleSubmit} style={{ maxWidth: 500, width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <TextField
             label="Reference Number"
             name="RefNum"
@@ -51,7 +79,7 @@ function AddTender() {
             onChange={handleChange}
             fullWidth
             required
-            sx={{ mb: 2 }}
+            sx={{ mb: 2, background: '#f5f7fa', borderRadius: 2 }}
           />
           <TextField
             label="Description"
@@ -60,9 +88,9 @@ function AddTender() {
             onChange={handleChange}
             fullWidth
             required
-            sx={{ mb: 2 }}
+            sx={{ mb: 2, background: '#f5f7fa', borderRadius: 2 }}
           />
-          <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, mb: 2, width: '100%' }}>
             <TextField
               label="Start Date"
               name="StartDate"
@@ -72,6 +100,7 @@ function AddTender() {
               InputLabelProps={{ shrink: true }}
               fullWidth
               required
+              sx={{ background: '#f5f7fa', borderRadius: 2 }}
             />
             <TextField
               label="End Date"
@@ -82,9 +111,10 @@ function AddTender() {
               InputLabelProps={{ shrink: true }}
               fullWidth
               required
+              sx={{ background: '#f5f7fa', borderRadius: 2 }}
             />
           </Box>
-          <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, mb: 2, width: '100%' }}>
             <TextField
               label="Region"
               name="Region"
@@ -92,6 +122,7 @@ function AddTender() {
               onChange={handleChange}
               fullWidth
               required
+              sx={{ background: '#f5f7fa', borderRadius: 2 }}
             />
             <TextField
               label="Amount"
@@ -101,6 +132,7 @@ function AddTender() {
               onChange={handleChange}
               fullWidth
               required
+              sx={{ background: '#f5f7fa', borderRadius: 2 }}
             />
           </Box>
           <TextField
@@ -111,7 +143,7 @@ function AddTender() {
             fullWidth
             multiline
             minRows={2}
-            sx={{ mb: 2 }}
+            sx={{ mb: 2, background: '#f5f7fa', borderRadius: 2 }}
           />
           {error && (
             <Typography color="error" sx={{ mb: 2 }}>{error}</Typography>
@@ -119,9 +151,19 @@ function AddTender() {
           <Button
             type="submit"
             variant="contained"
-            color="primary"
             disabled={loading}
-            sx={{ minWidth: 140 }}
+            sx={{
+              minWidth: 160,
+              fontWeight: 600,
+              fontSize: 16,
+              borderRadius: 2,
+              mt: 1,
+              boxShadow: 2,
+              textTransform: 'none',
+              letterSpacing: 1,
+              backgroundColor: '#2e8b57',
+              '&:hover': { backgroundColor: '#41753f' }
+            }}
           >
             {loading ? "Saving..." : "Add Tender"}
           </Button>

@@ -72,6 +72,7 @@ function App() {
       );
       setEditOpen(false);
       fetchTenders();
+      setEditSuccess(true); // Show success dialog
     } catch (err) {
       console.error("Error updating:", err);
     }
@@ -138,6 +139,7 @@ function App() {
   const [editOpen, setEditOpen] = useState(false);
   const [editTender, setEditTender] = useState(null);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
+  const [editSuccess, setEditSuccess] = useState(false);
 
   useEffect(() => {
     fetchTenders(page + 1, rowsPerPage, filters, searchTerm);
@@ -179,43 +181,97 @@ function App() {
     setSortConfig({ key, direction });
   };
 
+  // Toggle visibility of filter input for a column
+  const toggleFilterVisibility = (key) => {
+    setVisibleFilters((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  // Handle filter value change for a column
+  const handleFilterChange = (key, value) => {
+    setFilters((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+    setPage(0); // Reset to first page when filtering
+  };
+
+  // Open edit dialog for a tender
+  const handleEdit = (N_o) => {
+    const tender = tenders.find((t) => t.N_o === N_o || t.N_o === Number(N_o));
+    if (tender) {
+      setEditTender({ ...tender });
+      setEditOpen(true);
+    }
+  };
+
+  // Delete a tender by N_o
+  const handleDelete = async (N_o) => {
+    try {
+      await axios.delete(`http://localhost:5000/api/tenders/${N_o}`);
+      fetchTenders();
+      setDeleteSuccess(true);
+    } catch (err) {
+      alert('Failed to delete tender.');
+      console.error('Delete error:', err);
+    }
+  };
+
+  // Handle delete click (open confirm dialog)
+  const handleDeleteClick = (tender) => {
+    setSelectedTenderId(tender.N_o);
+    setConfirmOpen(true);
+  };
+
+  // Handle changes in the edit dialog fields
+  const handleEditChange = (key, value) => {
+    setEditTender((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
   return (
     <Box sx={{ display: "flex" }}>
       <SideNav selectedTab={selectedTab} onTabChange={handleTabChange} />
-      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+  <Box component="main" sx={{ flexGrow: 1, p: { xs: 1, sm: 3 }, background: 'linear-gradient(135deg, #f7fafc 0%, #e3f0ff 100%)', minHeight: '100vh' }}>
         <Routes>
           <Route path="/add-tender" element={<AddTender />} />
           <Route path="/" element={
             <>
               {selectedTab === 'tenders' && (
                 <>
-                  <Typography variant="h5">Available Tenders</Typography>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, mt: 1 }}>
-                    <Button 
-                      variant="contained" 
-                      sx={{ minWidth: 140, backgroundColor: '#18471aff', color: '#fff', '&:hover': { backgroundColor: '#43a047' } }}
-                      onClick={() => navigate('/add-tender')}
-                    >
-                      Add Tender
-                    </Button>
-                    <TextField
-                      placeholder="Search..."
-                      variant="outlined"
-                      size="small"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      sx={{ width: 300 }}
-                      InputProps={{
-                        endAdornment: (
-                          <IconButton disabled>
-                            <SearchIcon />
-                          </IconButton>
-                        ),
-                      }}
-                    />
-                  </Box>
-                  <TableContainer component={Paper}>
-                    <Table size="small">
+                  <Paper elevation={6} sx={{ p: { xs: 2, sm: 4 }, borderRadius: 4, boxShadow: 8, maxWidth: 1200, mx: 'auto', mb: 4, background: '#fff' }}>
+                    <Typography variant="h4" sx={{ mb: 2, fontWeight: 700, color: '#18471a' }}>Available Tenders</Typography>
+                    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, mb: 3, mt: 1, gap: 2 }}>
+                      <Button 
+                        variant="contained" 
+                        color="success"
+                        sx={{ minWidth: 160, fontWeight: 600, fontSize: 16, borderRadius: 2, boxShadow: 2, textTransform: 'none', letterSpacing: 1, backgroundColor: '#2e8b57', '&:hover': { backgroundColor: '#41753f' } }}
+                        onClick={() => navigate('/add-tender')}
+                      >
+                        Add Tender
+                      </Button>
+                      <TextField
+                        placeholder="Search..."
+                        variant="outlined"
+                        size="small"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        sx={{ width: { xs: '100%', sm: 300 }, background: '#f5f7fa', borderRadius: 2 }}
+                        InputProps={{
+                          endAdornment: (
+                            <IconButton disabled>
+                              <SearchIcon />
+                            </IconButton>
+                          ),
+                        }}
+                      />
+                    </Box>
+                    <TableContainer sx={{ borderRadius: 3, boxShadow: 2 }}>
+                      <Table size="small">
                       <TableHead>
                         <TableRow>
                           {columns.map((col) => (
@@ -326,34 +382,36 @@ function App() {
                     </Table>
                   </TableContainer>
                   {/* Display count of items on this page */}
-                  <Typography variant="body2" sx={{ mt: 1, mb: 0, textAlign: 'right', color: 'text.secondary' }}>
-                    Showing {processedTenders.length} of {totalTenders} tenders
-                  </Typography>
-                  <TablePagination
-                    component="div"
-                    count={totalTenders}
-                    page={page}
-                    onPageChange={handleChangePage}
-                    rowsPerPage={rowsPerPage}
-                    onRowsPerPageChange={handleChangeRowsPerPage}
-                    rowsPerPageOptions={[5, 10, 25, 100]}
-                    nextIconButtonProps={{ disabled: totalPages <= 1 }}
-                    backIconButtonProps={{ disabled: totalPages <= 1 }}
+                <Typography variant="body2" sx={{ mt: 2, mb: 0, textAlign: 'right', color: 'text.secondary' }}>
+                  Showing {processedTenders.length} of {totalTenders} tenders
+                </Typography>
+                <TablePagination
+                  component="div"
+                  count={totalTenders}
+                  page={page}
+                  onPageChange={handleChangePage}
+                  rowsPerPage={rowsPerPage}
+                  onRowsPerPageChange={handleChangeRowsPerPage}
+                  rowsPerPageOptions={[5, 10, 25, 100]}
+                  nextIconButtonProps={{ disabled: totalPages <= 1 }}
+                  backIconButtonProps={{ disabled: totalPages <= 1 }}
+                  sx={{ mt: 1 }}
+                />
+                <Stack spacing={2} sx={{ my: 2, alignItems: 'center' }}>
+                  <Pagination
+                    count={totalPages}
+                    page={page + 1}
+                    onChange={handlePaginationChange}
+                    variant="outlined"
+                    color="success"
+                    siblingCount={1}
+                    boundaryCount={1}
+                    showFirstButton
+                    showLastButton
+                    disabled={totalPages <= 1}
                   />
-                  <Stack spacing={2} sx={{ my: 2, alignItems: 'center' }}>
-                    <Pagination
-                      count={totalPages}
-                      page={page + 1}
-                      onChange={handlePaginationChange}
-                      variant="outlined"
-                      color="primary"
-                      siblingCount={1}
-                      boundaryCount={1}
-                      showFirstButton
-                      showLastButton
-                      disabled={totalPages <= 1}
-                    />
-                  </Stack>
+                </Stack>
+              </Paper>
                   <Menu
                     anchorEl={menuAnchorEl}
                     open={Boolean(menuAnchorEl)}
@@ -560,6 +618,20 @@ function App() {
                     </DialogContent>
                     <DialogActions>
                       <Button onClick={handleDeleteSuccessClose} autoFocus>OK</Button>
+                    </DialogActions>
+                  </Dialog>
+                  {/* Edit Success Message */}
+                  <Dialog open={editSuccess} onClose={() => setEditSuccess(false)}>
+                    <DialogTitle>Edit Successful</DialogTitle>
+                    <DialogContent>
+                      <DialogContentText>
+                        The tender was updated successfully.
+                      </DialogContentText>
+                    </DialogContent>
+                    <DialogActions>
+                      <Button onClick={() => setEditSuccess(false)} color="primary" autoFocus>
+                        Close
+                      </Button>
                     </DialogActions>
                   </Dialog>
                 </>
