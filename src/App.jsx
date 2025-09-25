@@ -109,27 +109,33 @@ function App() {
 
   // Table columns definition
   const columns = [
-    { key: "N_o", label: "NO", filterable: false },
-    { key: "RefNum", label: "Reference Number" },
-    { key: "Description", label: "Description" },
-    { key: "StartDate", label: "Start Date", filterable: false },
-    { key: "EndDate", label: "End Date", filterable: false },
-    { key: "Region", label: "Region" },
-    { key: "Amount", label: "Amount" },
-    { key: "Remark", label: "Remark" },
+    { key: "N_o", label: "NO", filterable: false, sortable: true },
+    { key: "CompanyName", label: "Company Name", sortable: true },
+    { key: "Description", label: "Description", sortable: false },
+    { key: "RefNum", label: "Reference Number", sortable: false },
+    { key: "ClosingDateTime", label: "Closing Date and Time", filterable: false, sortable: false },
+    { key: "OpeningDateTime", label: "Opening Date and Time", filterable: false, sortable: false },
+    { key: "Region", label: "Region", sortable: true },
+    { key: "Amount", label: "Amount", sortable: false },
+    { key: "TenderType", label: "Tender Type", filterable: true, sortable: false },
     { key: "Actions", label: "Actions", filterable: false, sortable: false },
   ];
 
-  // Options for filters
   const regionOptions = [
     ...new Set(tenders.map((t) => t.Region).filter(Boolean)),
   ];
   const descriptionOptions = [
     ...new Set(tenders.map((t) => t.Description).filter(Boolean)),
   ];
-
-  // For backend-driven filtering, just use tenders as-is
-  const processedTenders = tenders;
+  // Use the same tender type options as AddTender.jsx for consistent filtering
+  const tenderTypeOptions = [
+    "National Competitive bid",
+    "International Competitive Bid",
+    "Goods",
+    "Consultancy",
+    "Non-consultancy",
+    "Works"
+  ];
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
@@ -138,8 +144,21 @@ function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [editOpen, setEditOpen] = useState(false);
   const [editTender, setEditTender] = useState(null);
+  const [editSearch, setEditSearch] = useState("");
+  const [editSearchResult, setEditSearchResult] = useState(null);
+  const [editMode, setEditMode] = useState(false);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
   const [editSuccess, setEditSuccess] = useState(false);
+  // Add tender type filter state
+  const [tenderTypeFilter, setTenderTypeFilter] = useState("");
+  // Apply TenderType filter client-side if set
+  // Normalize comparison for tender type filter (case and whitespace insensitive)
+  const processedTenders = tenderTypeFilter
+    ? tenders.filter((t) =>
+        t.TenderType &&
+        t.TenderType.trim().toLowerCase() === tenderTypeFilter.trim().toLowerCase()
+      )
+    : tenders;
 
   useEffect(() => {
     fetchTenders(page + 1, rowsPerPage, filters, searchTerm);
@@ -233,156 +252,215 @@ function App() {
     }));
   };
 
+  // Handler for searching a tender to edit
+  const handleEditSearch = async () => {
+    if (!editSearch) {
+      setEditSearchResult(null);
+      setEditTender(null);
+      setEditMode(false);
+      return;
+    }
+    // Try to find in current tenders first (current page)
+    let found = tenders.find(
+      (t) =>
+        (t.RefNum && t.RefNum.trim().toLowerCase() === editSearch.trim().toLowerCase()) ||
+        (t.CompanyName && t.CompanyName.trim().toLowerCase() === editSearch.trim().toLowerCase())
+    );
+    if (found) {
+      setEditSearchResult(found);
+      setEditTender(found);
+      setEditMode(true);
+      return;
+    }
+    // If not found, fetch from backend (search all tenders)
+    try {
+      const params = new URLSearchParams();
+      params.append('page', 1);
+      params.append('pageSize', 1); // Only need one result
+      params.append('search', editSearch);
+      const res = await axios.get(`http://localhost:5000/api/tenders?${params.toString()}`);
+      const tender = res.data.tenders && res.data.tenders.length > 0 ? res.data.tenders[0] : null;
+      if (tender) {
+        setEditSearchResult(tender);
+        setEditTender(tender);
+        setEditMode(true);
+      } else {
+        setEditSearchResult(null);
+        setEditTender(null);
+        setEditMode(false);
+      }
+    } catch (err) {
+      setEditSearchResult(null);
+      setEditTender(null);
+      setEditMode(false);
+    }
+  };
+
+  const handleEditComplete = () => {
+    setEditMode(false);
+    setEditTender(null);
+    setEditSearch("");
+    setEditSearchResult(null);
+    fetchTenders();
+  };
+
   return (
     <Box sx={{ display: "flex" }}>
       <SideNav selectedTab={selectedTab} onTabChange={handleTabChange} />
-  <Box component="main" sx={{ flexGrow: 1, p: { xs: 1, sm: 3 }, background: 'linear-gradient(135deg, #f7fafc 0%, #e3f0ff 100%)', minHeight: '100vh' }}>
+      <Box component="main" sx={{ flexGrow: 1, p: { xs: 1, sm: 3 }, background: 'linear-gradient(135deg, #e0f2fe 0%, #f8fafc 100%)', minHeight: '100vh' }}>
         <Routes>
-          <Route path="/add-tender" element={<AddTender />} />
+          <Route path="/add-tender" element={
+            <Box>
+              <Paper elevation={6} sx={{ p: { xs: 2, sm: 4 }, borderRadius: 4, boxShadow: 8, maxWidth: 600, mx: 'auto', mb: 4, background: 'linear-gradient(135deg, #f0f4f8 0%, #e0e7ef 100%)' }}>
+                <Typography variant="h4" sx={{ mb: 2, fontWeight: 700, color: '#1e293b' }}>Add or Edit Tender</Typography>
+                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', gap: 2, mb: 2 }}>
+                  <TextField
+                    label="Search by Reference Number or Company Name"
+                    value={editSearch}
+                    onChange={e => setEditSearch(e.target.value)}
+                    size="small"
+                    sx={{ width: 260 }}
+                  />
+                  <Button variant="outlined" onClick={handleEditSearch} sx={{ height: 40 }}>
+                    Search Tender
+                  </Button>
+                  {editSearchResult === null && editSearch && (
+                    <Typography sx={{ color: 'red', ml: 2 }}>No tender found.</Typography>
+                  )}
+                  {editSearchResult && (
+                    <Typography sx={{ color: 'green', ml: 2 }}>Tender found. You can edit below.</Typography>
+                  )}
+                </Box>
+                <AddTender
+                  editTender={editMode ? editTender : null}
+                  onEditComplete={handleEditComplete}
+                />
+              </Paper>
+            </Box>
+          } />
           <Route path="/" element={
             <>
               {selectedTab === 'tenders' && (
                 <>
-                  <Paper elevation={6} sx={{ p: { xs: 2, sm: 4 }, borderRadius: 4, boxShadow: 8, maxWidth: 1200, mx: 'auto', mb: 4, background: '#fff' }}>
-                    <Typography variant="h4" sx={{ mb: 2, fontWeight: 700, color: '#18471a' }}>Available Tenders</Typography>
+                  <Paper elevation={6} sx={{ p: { xs: 2, sm: 4 }, borderRadius: 4, boxShadow: 8, maxWidth: 1200, mx: 'auto', mb: 4, background: 'linear-gradient(135deg, #f0f4f8 0%, #e0e7ef 100%)' }}>
+                    <Typography variant="h4" sx={{ mb: 2, fontWeight: 700, color: '#1e293b' }}>Available Tenders</Typography>
                     <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, mb: 3, mt: 1, gap: 2 }}>
                       <Button 
                         variant="contained" 
-                        color="success"
-                        sx={{ minWidth: 160, fontWeight: 600, fontSize: 16, borderRadius: 2, boxShadow: 2, textTransform: 'none', letterSpacing: 1, backgroundColor: '#2e8b57', '&:hover': { backgroundColor: '#41753f' } }}
+                        sx={{ minWidth: 160, fontWeight: 600, fontSize: 16, borderRadius: 2, boxShadow: 2, textTransform: 'none', letterSpacing: 1, backgroundColor: '#0ea5e9', color: '#fff', '&:hover': { backgroundColor: '#0369a1' } }}
                         onClick={() => navigate('/add-tender')}
                       >
                         Add Tender
                       </Button>
-                      <TextField
-                        placeholder="Search..."
-                        variant="outlined"
-                        size="small"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        sx={{ width: { xs: '100%', sm: 300 }, background: '#f5f7fa', borderRadius: 2 }}
-                        InputProps={{
-                          endAdornment: (
-                            <IconButton disabled>
-                              <SearchIcon />
-                            </IconButton>
-                          ),
-                        }}
-                      />
-                    </Box>
-                    <TableContainer sx={{ borderRadius: 3, boxShadow: 2 }}>
-                      <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          {columns.map((col) => (
-                            <TableCell key={col.key}>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                }}
-                              >
-                                <TableSortLabel
-                                  active={sortConfig.key === col.key}
-                                  direction={
-                                    sortConfig.key === col.key
-                                      ? sortConfig.direction
-                                      : "asc"
-                                  }
-                                  onClick={() => handleSort(col.key)}
-                                  sx={{
-                                    color: "white",
-                                    "& .MuiTableSortLabel-icon": { color: "white" },
-                                  }}
-                                >
-                                  <strong>{col.label}</strong>
-                                </TableSortLabel>
-                                {col.filterable !== false && (
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => toggleFilterVisibility(col.key)}
-                                    sx={{ color: 'white' }}
-                                  >
-                                    <FilterAltIcon fontSize="small" sx={{ color: 'white' }} />
-                                  </IconButton>
-                                )}
-                              </div>
-                              {col.filterable !== false &&
-                                visibleFilters[col.key] &&
-                                (col.key === "Region" || col.key === "Description" ? (
-                                  <TextField
-                                    select
-                                    fullWidth
-                                    variant="standard"
-                                    size="small"
-                                    value={filters[col.key] || ""}
-                                    onChange={(e) =>
-                                      handleFilterChange(col.key, e.target.value)
-                                    }
-                                    SelectProps={{ native: true }}
-                                  >
-                                    <option value="">All</option>
-                                    {(col.key === "Region"
-                                      ? regionOptions
-                                      : descriptionOptions
-                                    ).map((option, i) => (
-                                      <option key={i} value={option}>
-                                        {option}
-                                      </option>
-                                    ))}
-                                  </TextField>
-                                ) : (
-                                  <TextField
-                                    size="small"
-                                    variant="standard"
-                                    placeholder="Filter..."
-                                    onChange={(e) =>
-                                      handleFilterChange(col.key, e.target.value)
-                                    }
-                                    fullWidth
-                                  />
-                                ))}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {processedTenders.map((tender) => (
-                          <TableRow key={tender.N_o}>
-                            <TableCell>{tender.N_o}</TableCell>
-                            <TableCell>{tender.RefNum}</TableCell>
-                            <TableCell>{tender.Description}</TableCell>
-                            <TableCell>{new Date(tender.StartDate).toLocaleDateString()}</TableCell>
-                            <TableCell>{new Date(tender.EndDate).toLocaleDateString()}</TableCell>
-                            <TableCell>{tender.Region}</TableCell>
-                            <TableCell>{tender.Amount?.toLocaleString()}</TableCell>
-                            <TableCell>{tender.Remark}</TableCell>
-                            <TableCell>
-                              <IconButton onClick={(e) => handleMenuOpen(e, tender.N_o)}>
-                                <MoreVertIcon />
+                      <Box sx={{ display: 'flex', flexDirection: 'row', gap: 1 }}>
+                        <TextField
+                          placeholder="Search..."
+                          variant="outlined"
+                          size="small"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          sx={{ width: { xs: '100%', sm: 220 }, background: '#f1f5f9', borderRadius: 2, boxShadow: 'none', border: 'none', '& .MuiOutlinedInput-root': { boxShadow: 'none', border: 'none', background: 'transparent' }, '& .MuiOutlinedInput-notchedOutline': { border: 'none' } }}
+                          InputProps={{
+                            endAdornment: (
+                              <IconButton disabled>
+                                <SearchIcon />
                               </IconButton>
-                              <Menu
-                                anchorEl={menuAnchorEl}
-                                open={Boolean(menuAnchorEl) && selectedTenderId === tender.N_o}
-                                onClose={handleMenuClose}
-                              >
-                                <MenuItem onClick={() => handleEdit(tender.N_o)}>
-                                  <EditIcon fontSize="small" sx={{ mr: 1 }} />
-                                  Edit
-                                </MenuItem>
-                                <MenuItem onClick={() => handleDeleteClick(tender)}>
-                                  <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
-                                  Delete
-                                </MenuItem>
-                              </Menu>
-                            </TableCell>
+                            ),
+                          }}
+                        />
+                        <TextField
+                          select
+                          label="Filter by Tender Type"
+                          value={tenderTypeFilter}
+                          onChange={e => {
+                            setTenderTypeFilter(e.target.value);
+                            setFilters(prev => ({ ...prev, TenderType: e.target.value }));
+                            setPage(0);
+                          }}
+                          sx={{ width: { xs: '100%', sm: 180 }, background: '#f1f5f9', borderRadius: 2 }}
+                          size="small"
+                          className="addTenderInput"
+                        >
+                          <MenuItem value="">All Types</MenuItem>
+                          {tenderTypeOptions.map(option => (
+                            <MenuItem key={option} value={option}>{option}</MenuItem>
+                          ))}
+                        </TextField>
+                      </Box>
+                    </Box>
+                    <TableContainer sx={{ borderRadius: 3, boxShadow: 2, background: '#f8fafc' }}>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                             {columns.map((col) => (
+                               <TableCell key={col.key} sx={{ background: '#e0e7ef', color: '#334155', fontWeight: 600 }}>
+                                 {col.sortable !== false ? (
+                                   <TableSortLabel
+                                     active={sortConfig.key === col.key}
+                                     direction={
+                                       sortConfig.key === col.key
+                                         ? sortConfig.direction
+                                         : "asc"
+                                     }
+                                     onClick={() => handleSort(col.key)}
+                                     sx={{ color: '#334155', '& .MuiTableSortLabel-icon': { color: '#334155' } }}
+                                   >
+                                     <strong style={{ color: '#334155' }}>{col.label}</strong>
+                                   </TableSortLabel>
+                                 ) : (
+                                   <strong style={{ color: '#334155' }}>{col.label}</strong>
+                                 )}
+                               </TableCell>
+                             ))}
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                  {/* Display count of items on this page */}
-                <Typography variant="body2" sx={{ mt: 2, mb: 0, textAlign: 'right', color: 'text.secondary' }}>
+                        </TableHead>
+                        <TableBody>
+                          {processedTenders.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={columns.length} align="center">
+                                No matches found.
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            processedTenders.map((tender) => (
+                              <TableRow key={tender.N_o} sx={{ '&:hover': { background: '#e0f2fe' } }}>
+                                <TableCell>{tender.N_o}</TableCell>
+                                <TableCell>{tender.CompanyName}</TableCell>
+                                <TableCell>{tender.Description}</TableCell>
+                                <TableCell>{tender.RefNum}</TableCell>
+                                <TableCell>{tender.ClosingDateTime ? new Date(tender.ClosingDateTime).toLocaleString() : ''}</TableCell>
+                                <TableCell>{tender.OpeningDateTime ? new Date(tender.OpeningDateTime).toLocaleString() : ''}</TableCell>
+                                <TableCell>{tender.Region}</TableCell>
+                                <TableCell>{tender.Amount?.toLocaleString()}</TableCell>
+                                <TableCell>{tender.TenderType}</TableCell>
+                                
+                                <TableCell>
+                                  <IconButton onClick={(e) => handleMenuOpen(e, tender.N_o)} sx={{ color: '#0ea5e9' }}>
+                                    <MoreVertIcon />
+                                  </IconButton>
+                                  <Menu
+                                    anchorEl={menuAnchorEl}
+                                    open={Boolean(menuAnchorEl) && selectedTenderId === tender.N_o}
+                                    onClose={handleMenuClose}
+                                  >
+                                    <MenuItem onClick={() => handleEdit(tender.N_o)}>
+                                      <EditIcon fontSize="small" sx={{ mr: 1, color: '#0ea5e9' }} />
+                                      Edit
+                                    </MenuItem>
+                                    <MenuItem onClick={() => handleDeleteClick(tender)}>
+                                      <DeleteIcon fontSize="small" sx={{ mr: 1, color: '#ef4444' }} />
+                                      Delete
+                                    </MenuItem>
+                                  </Menu>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                    {/* Display count of items on this page */}
+                <Typography variant="body2" sx={{ mt: 2, mb: 0, textAlign: 'right', color: '#64748b' }}>
                   Showing {processedTenders.length} of {totalTenders} tenders
                 </Typography>
                 <TablePagination
@@ -395,7 +473,7 @@ function App() {
                   rowsPerPageOptions={[5, 10, 25, 100]}
                   nextIconButtonProps={{ disabled: totalPages <= 1 }}
                   backIconButtonProps={{ disabled: totalPages <= 1 }}
-                  sx={{ mt: 1 }}
+                  sx={{ mt: 1, background: '#f1f5f9', borderRadius: 2 }}
                 />
                 <Stack spacing={2} sx={{ my: 2, alignItems: 'center' }}>
                   <Pagination
@@ -403,7 +481,7 @@ function App() {
                     page={page + 1}
                     onChange={handlePaginationChange}
                     variant="outlined"
-                    color="success"
+                    color="primary"
                     siblingCount={1}
                     boundaryCount={1}
                     showFirstButton
@@ -443,35 +521,35 @@ function App() {
                     fullWidth
                     PaperProps={{
                       sx: {
-                        borderRadius: 3,
-                        background: "#f7fbfc",
+                        borderRadius: 4,
+                        background: 'linear-gradient(135deg, #e0f2fe 0%, #f8fafc 100%)',
                         boxShadow: 8,
+                        minWidth: 380,
                       },
                     }}
                   >
-                    <DialogTitle
-                      sx={{
-                        background: "#213d50",
-                        color: "#fff",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1,
-                        pb: 2,
-                        borderTopLeftRadius: 12,
-                        borderTopRightRadius: 12,
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <EditIcon sx={{ mr: 1 }} />
+                    <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 0, background: 'transparent' }}>
+                      <Box sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 48,
+                        height: 48,
+                        borderRadius: '50%',
+                        background: '#0ea5e922',
+                        mr: 2,
+                      }}>
+                        <EditIcon sx={{ color: '#0ea5e9', fontSize: 32 }} />
+                      </Box>
+                      <Typography variant="h5" sx={{ color: '#0369a1', fontWeight: 700, letterSpacing: 1 }}>
                         Edit Tender
-                      </span>
+                      </Typography>
                       <IconButton
                         aria-label="close"
                         onClick={() => setEditOpen(false)}
                         sx={{
-                          color: "#fff",
-                          ml: 2,
+                          color: '#0369a1',
+                          ml: 'auto',
                           p: 0.5,
                         }}
                       >
@@ -490,11 +568,11 @@ function App() {
                         >
                           <TextField
                             margin="dense"
-                            label="Reference Number"
+                            label="Company Name"
                             fullWidth
                             variant="outlined"
-                            value={editTender.RefNum || ""}
-                            onChange={(e) => handleEditChange("RefNum", e.target.value)}
+                            value={editTender.CompanyName || ""}
+                            onChange={(e) => handleEditChange("CompanyName", e.target.value)}
                           />
                           <TextField
                             margin="dense"
@@ -506,35 +584,43 @@ function App() {
                               handleEditChange("Description", e.target.value)
                             }
                           />
+                          <TextField
+                            margin="dense"
+                            label="Reference Number"
+                            fullWidth
+                            variant="outlined"
+                            value={editTender.RefNum || ""}
+                            onChange={(e) => handleEditChange("RefNum", e.target.value)}
+                          />
                           <Box sx={{ display: "flex", gap: 2 }}>
                             <TextField
                               margin="dense"
-                              label="Start Date"
-                              type="date"
+                              label="Closing Date and Time"
+                              type="datetime-local"
                               fullWidth
                               variant="outlined"
                               InputLabelProps={{ shrink: true }}
                               value={
-                                editTender.StartDate
-                                  ? editTender.StartDate.slice(0, 10)
+                                editTender.ClosingDateTime
+                                  ? editTender.ClosingDateTime.slice(0, 16)
                                   : ""
                               }
                               onChange={(e) =>
-                                handleEditChange("StartDate", e.target.value)
+                                handleEditChange("ClosingDateTime", e.target.value)
                               }
                             />
                             <TextField
                               margin="dense"
-                              label="End Date"
-                              type="date"
+                              label="Opening Date and Time"
+                              type="datetime-local"
                               fullWidth
                               variant="outlined"
                               InputLabelProps={{ shrink: true }}
                               value={
-                                editTender.EndDate ? editTender.EndDate.slice(0, 10) : ""
+                                editTender.OpeningDateTime ? editTender.OpeningDateTime.slice(0, 16) : ""
                               }
                               onChange={(e) =>
-                                handleEditChange("EndDate", e.target.value)
+                                handleEditChange("OpeningDateTime", e.target.value)
                               }
                             />
                           </Box>
@@ -558,31 +644,33 @@ function App() {
                             />
                           </Box>
                           <TextField
+                            select
                             margin="dense"
-                            label="Remark"
+                            label="Tender Type"
                             fullWidth
                             variant="outlined"
-                            multiline
-                            minRows={2}
-                            value={editTender.Remark || ""}
-                            onChange={(e) => handleEditChange("Remark", e.target.value)}
-                          />
+                            value={editTender.TenderType || ""}
+                            onChange={(e) => handleEditChange("TenderType", e.target.value)}
+                          >
+                            {["National Competitive bid", "International Competitive Bid", "Goods", "Consultancy", "Non-consultancy", "Works"].map((option) => (
+                              <MenuItem key={option} value={option}>{option}</MenuItem>
+                            ))}
+                          </TextField>
                         </Box>
                       )}
                     </DialogContent>
-                    <DialogActions sx={{ px: 3, pb: 2 }}>
+                    <DialogActions sx={{ justifyContent: 'center', pb: 2, px: 3 }}>
                       <Button
                         onClick={() => setEditOpen(false)}
                         variant="outlined"
-                        color="inherit"
+                        sx={{ color: '#0369a1', borderColor: '#0ea5e9', fontWeight: 600, px: 4, borderRadius: 2, textTransform: 'none', fontSize: 16, mr: 2 }}
                       >
                         Cancel
                       </Button>
                       <Button
                         onClick={handleEditSave}
                         variant="contained"
-                        color="primary"
-                        sx={{ boxShadow: 2 }}
+                        sx={{ background: 'linear-gradient(90deg, #0ea5e9 0%, #0369a1 100%)', color: '#fff', fontWeight: 600, px: 4, borderRadius: 2, boxShadow: 2, textTransform: 'none', fontSize: 16, '&:hover': { background: '#0369a1' } }}
                         startIcon={<EditIcon />}
                       >
                         Save Changes
@@ -590,48 +678,143 @@ function App() {
                     </DialogActions>
                   </Dialog>
                   {/* Delete Confirmation Dialog */}
-                  <Dialog open={confirmOpen} onClose={handleConfirmClose}>
-                    <DialogTitle>Confirm Delete</DialogTitle>
-                    <DialogContent>
-                      <DialogContentText>
+                  {/* Enhanced Confirm Delete Dialog */}
+                  <Dialog open={confirmOpen} onClose={handleConfirmClose}
+                    PaperProps={{
+                      sx: {
+                        borderRadius: 4,
+                        background: 'linear-gradient(135deg, #fffbe6 0%, #f8fafc 100%)',
+                        boxShadow: 8,
+                        minWidth: 340,
+                      },
+                    }}
+                  >
+                    <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 0, background: 'transparent' }}>
+                      <Box sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 48,
+                        height: 48,
+                        borderRadius: '50%',
+                        background: '#facc1522',
+                        mr: 2,
+                      }}>
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <circle cx="12" cy="12" r="12" fill="#facc15" fillOpacity="0.15"/>
+                          <path d="M12 8v4m0 4h.01" stroke="#facc15" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </Box>
+                      <Typography variant="h5" sx={{ color: '#b45309', fontWeight: 700, letterSpacing: 1 }}>
+                        Confirm Delete
+                      </Typography>
+                    </DialogTitle>
+                    <DialogContent sx={{ pt: 1, pb: 2 }}>
+                      <DialogContentText sx={{ color: '#92400e', fontSize: 18, fontWeight: 500, textAlign: 'center', mb: 1 }}>
                         Are you sure you want to delete this tender?
                       </DialogContentText>
                     </DialogContent>
-                    <DialogActions>
-                      <Button onClick={handleConfirmClose}>Cancel</Button>
+                    <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
+                      <Button onClick={handleConfirmClose} variant="outlined" sx={{ color: '#b45309', borderColor: '#facc15', fontWeight: 600, px: 4, borderRadius: 2, textTransform: 'none', fontSize: 16, mr: 2 }}>
+                        Cancel
+                      </Button>
                       <Button
                         onClick={handleConfirmDelete}
-                        color="error"
                         variant="contained"
+                        sx={{
+                          background: 'linear-gradient(90deg, #facc15 0%, #b45309 100%)',
+                          color: '#fff',
+                          fontWeight: 600,
+                          px: 4,
+                          borderRadius: 2,
+                          boxShadow: 2,
+                          textTransform: 'none',
+                          fontSize: 16,
+                          '&:hover': { background: '#b45309' },
+                        }}
                       >
                         Delete
                       </Button>
                     </DialogActions>
                   </Dialog>
-                  {/* Delete Success Message */}
-                  <Dialog open={deleteSuccess} onClose={handleDeleteSuccessClose}>
-                    <DialogTitle>Delete Successful</DialogTitle>
-                    <DialogContent>
-                      <DialogContentText>
+                  {/* Enhanced Delete Success Dialog */}
+                  <Dialog open={deleteSuccess} onClose={handleDeleteSuccessClose}
+                    PaperProps={{
+                      sx: {
+                        borderRadius: 4,
+                        background: 'linear-gradient(135deg, #e0ffe8 0%, #f8fafc 100%)',
+                        boxShadow: 8,
+                        minWidth: 340,
+                      },
+                    }}
+                  >
+                    <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 0, background: 'transparent' }}>
+                      <Box sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 48,
+                        height: 48,
+                        borderRadius: '50%',
+                        background: '#22c55e22',
+                        mr: 2,
+                      }}>
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <circle cx="12" cy="12" r="12" fill="#22c55e" fillOpacity="0.15"/>
+                          <path d="M7 13.5L10.5 17L17 10" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </Box>
+                      <Typography variant="h5" sx={{ color: '#15803d', fontWeight: 700, letterSpacing: 1 }}>
+                        Delete Successful
+                      </Typography>
+                    </DialogTitle>
+                    <DialogContent sx={{ pt: 1, pb: 2 }}>
+                      <DialogContentText sx={{ color: '#166534', fontSize: 18, fontWeight: 500, textAlign: 'center', mb: 1 }}>
                         Tender was deleted successfully.
                       </DialogContentText>
                     </DialogContent>
-                    <DialogActions>
-                      <Button onClick={handleDeleteSuccessClose} autoFocus>OK</Button>
+                    <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
+                      <Button onClick={handleDeleteSuccessClose} autoFocus variant="contained" sx={{ background: 'linear-gradient(90deg, #22c55e 0%, #16a34a 100%)', color: '#fff', fontWeight: 600, px: 4, borderRadius: 2, boxShadow: 2, textTransform: 'none', fontSize: 16, '&:hover': { background: '#16a34a' } }}>OK</Button>
                     </DialogActions>
                   </Dialog>
-                  {/* Edit Success Message */}
-                  <Dialog open={editSuccess} onClose={() => setEditSuccess(false)}>
-                    <DialogTitle>Edit Successful</DialogTitle>
-                    <DialogContent>
-                      <DialogContentText>
+                  {/* Enhanced Edit Success Dialog */}
+                  <Dialog open={editSuccess} onClose={() => setEditSuccess(false)}
+                    PaperProps={{
+                      sx: {
+                        borderRadius: 4,
+                        background: 'linear-gradient(135deg, #e0ffe8 0%, #f8fafc 100%)',
+                        boxShadow: 8,
+                        minWidth: 340,
+                      },
+                    }}
+                  >
+                    <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 0, background: 'transparent' }}>
+                      <Box sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 48,
+                        height: 48,
+                        borderRadius: '50%',
+                        background: '#22c55e22',
+                        mr: 2,
+                      }}>
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <circle cx="12" cy="12" r="12" fill="#22c55e" fillOpacity="0.15"/>
+                          <path d="M7 13.5L10.5 17L17 10" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </Box>
+                      <Typography variant="h5" sx={{ color: '#15803d', fontWeight: 700, letterSpacing: 1 }}>
+                        Edit Successful
+                      </Typography>
+                    </DialogTitle>
+                    <DialogContent sx={{ pt: 1, pb: 2 }}>
+                      <DialogContentText sx={{ color: '#166534', fontSize: 18, fontWeight: 500, textAlign: 'center', mb: 1 }}>
                         The tender was updated successfully.
                       </DialogContentText>
                     </DialogContent>
-                    <DialogActions>
-                      <Button onClick={() => setEditSuccess(false)} color="primary" autoFocus>
-                        Close
-                      </Button>
+                    <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
+                      <Button onClick={() => setEditSuccess(false)} color="primary" autoFocus variant="contained" sx={{ background: 'linear-gradient(90deg, #22c55e 0%, #16a34a 100%)', color: '#fff', fontWeight: 600, px: 4, borderRadius: 2, boxShadow: 2, textTransform: 'none', fontSize: 16, '&:hover': { background: '#16a34a' } }}>Close</Button>
                     </DialogActions>
                   </Dialog>
                 </>

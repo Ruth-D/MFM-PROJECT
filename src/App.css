@@ -74,3 +74,113 @@
   background-color: #e0efff !important;
   transition: background-color 0.3s ease;
 }
+
+/* AddTender Page Styles */
+.addTenderMain {
+  flex-grow: 1;
+  min-height: 100vh;
+  display: flex;
+  justify-content: flex-start;
+  align-items: stretch;
+  padding: 0;
+  background: linear-gradient(135deg, #e0f2fe 0%, #f8fafc 100%);
+}
+
+.centerTenderCard {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  border-radius: 0 48px 48px 0;
+  background: linear-gradient(120deg, #e0eafc 0%, #f8fafc 60%, #e0f2fe 100%);
+  box-shadow: 0 0 32px 0 rgba(16, 42, 67, 0.08) inset;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 0;
+  min-height: 100vh;
+}
+
+.addTenderCard {
+  width: 100%;              /* Take full width */
+  max-width: 100%;          /* Remove restriction */
+  background: linear-gradient(135deg, #f0f4f8 0%, #e0e7ef 100%);
+  border-radius: 18px;
+  box-shadow: 0 8px 32px 0 rgba(16, 42, 67, 0.10);
+  padding: 40px 32px 32px 32px;
+  display: flex;
+  flex-direction: column;
+  margin: 0; 
+   margin-right: 40px;               /* Remove auto margin */
+}
+
+/* Extra curvy edges for AddTender Paper */
+.curvyPaper {
+  border-radius: 32px !important;
+}
+
+.addTenderTitle {
+  margin-bottom: 12px !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  letter-spacing: 1px;
+}
+
+.addTenderSubtitle {
+  margin-bottom: 24px !important;
+  color: #64748b !important;
+  text-align: center;
+}
+
+.addTenderForm {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 48px 36px 36px 36px;
+  gap: 12px;
+  animation: fadeIn 1s cubic-bezier(.4,0,.2,1);
+}
+
+.addTenderInput {
+  margin-bottom: 18px !important;
+  background: #f1f5f9 !important;
+  border-radius: 8px !important;
+}
+
+/* Style for select dropdown in AddTender */
+.addTenderInput select {
+  background: #f1f5f9 !important;
+  border-radius: 8px !important;
+  padding: 10px 12px;
+  font-size: 16px;
+}
+
+.addTenderRow {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 18px;
+  width: 100%;
+}
+
+.addTenderButton {
+  min-width: 160px;
+  font-weight: 600;
+  font-size: 16px;
+  border-radius: 8px;
+  margin-top: 8px;
+  box-shadow: 0 2px 8px 0 rgba(16, 42, 67, 0.10);
+  text-transform: none;
+  letter-spacing: 1px;
+  background-color: #0ea5e9 !important;
+  color: #fff !important;
+  transition: background 0.2s;
+}
+.addTenderButton:hover {
+  background-color: #0369a1 !important;
+}
