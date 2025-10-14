@@ -311,31 +311,11 @@ function App() {
         <Routes>
           <Route path="/add-tender" element={
             <Box>
-              <Paper elevation={6} sx={{ p: { xs: 2, sm: 4 }, borderRadius: 4, boxShadow: 8, maxWidth: 600, mx: 'auto', mb: 4, background: 'linear-gradient(135deg, #f0f4f8 0%, #e0e7ef 100%)' }}>
-                <Typography variant="h4" sx={{ mb: 2, fontWeight: 700, color: '#1e293b' }}>Add or Edit Tender</Typography>
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', gap: 2, mb: 2 }}>
-                  <TextField
-                    label="Search by Reference Number or Company Name"
-                    value={editSearch}
-                    onChange={e => setEditSearch(e.target.value)}
-                    size="small"
-                    sx={{ width: 260 }}
-                  />
-                  <Button variant="outlined" onClick={handleEditSearch} sx={{ height: 40 }}>
-                    Search Tender
-                  </Button>
-                  {editSearchResult === null && editSearch && (
-                    <Typography sx={{ color: 'red', ml: 2 }}>No tender found.</Typography>
-                  )}
-                  {editSearchResult && (
-                    <Typography sx={{ color: 'green', ml: 2 }}>Tender found. You can edit below.</Typography>
-                  )}
-                </Box>
-                <AddTender
-                  editTender={editMode ? editTender : null}
-                  onEditComplete={handleEditComplete}
-                />
-              </Paper>
+              {/* Remove the outer Paper to avoid double card */}
+              <AddTender
+                editTender={editMode ? editTender : null}
+                onEditComplete={handleEditComplete}
+              />
             </Box>
           } />
           <Route path="/" element={
